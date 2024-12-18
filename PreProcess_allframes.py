@@ -157,15 +157,6 @@ def process_frame(frame):
 
     return stretch
     
-def plot_histogram(image, frame_idx):
-    """Plots a histogram of pixel intensities for the given image."""
-    plt.figure(figsize=(8, 5))
-    plt.hist(image.ravel(), bins=256, range=(0, 255), color='blue', alpha=0.7)
-    plt.title(f"Pixel Intensity Histogram - Frame {frame_idx + 1}")
-    plt.xlabel("Pixel Intensity")
-    plt.ylabel("Frequency")
-    plt.grid(True, linestyle="--", alpha=0.5)
-    plt.show()
 
 # Load the TIFF
 tiff_file = r"C:\Users\Harry\OneDrive - Imperial College London\Bioeng\Year 3\Software Engineering\HyphaTracker\timelapse1.tif"
