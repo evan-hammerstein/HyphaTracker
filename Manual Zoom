@@ -1,0 +1,28 @@
+import cv2
+
+# Initialize a list to store coordinates
+coordinates = []
+
+# Mouse callback function
+def select_area(event, x, y, flags, param):
+    global coordinates
+    # Record the starting point on left button press
+    if event == cv2.EVENT_LBUTTONDOWN:
+        coordinates = [(x, y)]
+    # Record the ending point on left button release
+    elif event == cv2.EVENT_LBUTTONUP:
+        coordinates.append((x, y))
+        # Draw a rectangle on the image
+        cv2.rectangle(img, coordinates[0], coordinates[1], (0, 255, 0), 2)
+        cv2.imshow("Image", img)
+        print(f"Selected Area Coordinates: {coordinates}")
+
+# Load the image
+img = cv2.imread('image.png')
+cv2.imshow("Image", img)
+
+# Set the mouse callback function
+cv2.setMouseCallback("Image", select_area)
+
+cv2.waitKey(0)
+cv2.destroyAllWindows()
