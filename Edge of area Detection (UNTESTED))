@@ -1,0 +1,45 @@
+import cv2
+import numpy as np
+
+# Function to detect and draw the 6 longest lines using Hough Transform
+def detect_longest_lines(image):
+    # Edge detection using Canny
+    edges = cv2.Canny(image, 50, 150, apertureSize=3)
+
+    # Detect lines using Probabilistic Hough Transform
+    lines = cv2.HoughLinesP(edges, rho=1, theta=np.pi/180, threshold=100, minLineLength=50, maxLineGap=10)
+
+    if lines is not None:
+        # Calculate line lengths and sort by length
+        line_lengths = []
+        for line in lines:
+            x1, y1, x2, y2 = line[0]
+            length = np.sqrt((x2 - x1)**2 + (y2 - y1)**2)
+            line_lengths.append((length, (x1, y1, x2, y2)))
+
+        # Sort lines by length in descending order and select the top 6 longest lines
+        line_lengths = sorted(line_lengths, key=lambda x: x[0], reverse=True)
+        longest_lines = [line[1] for line in line_lengths[:6]]
+
+        # Draw the 6 longest lines on a copy of the image
+        output_image = cv2.cvtColor(image.copy(), cv2.COLOR_GRAY2BGR)
+        for x1, y1, x2, y2 in longest_lines:
+            cv2.line(output_image, (x1, y1), (x2, y2), (0, 255, 0), 2)
+
+        return output_image
+
+    else:
+        print("No lines detected.")
+        return image
+
+# Load the first processed frame (already filtered by your provided code)
+first_frame = cv2.imread("processed_frame_1.png", cv2.IMREAD_GRAYSCALE)
+
+# Detect and draw the 6 longest lines on the first frame
+output_image_with_lines = detect_longest_lines(first_frame)
+
+# Save and display the result
+cv2.imwrite("first_frame_with_6_longest_lines.png", output_image_with_lines)
+cv2.imshow("First Frame with 6 Longest Lines", output_image_with_lines)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
