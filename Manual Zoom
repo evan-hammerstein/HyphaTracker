@@ -1,28 +1,71 @@
 import cv2
 
-# Initialize a list to store coordinates
+# Initialize variables
 coordinates = []
+drawing = False  # Flag to indicate if the user is currently drawing
+original_img = None  # To store the original image
+resized_img = None  # To store the resized image
+scale_factor = 1.0  # To track resizing scale
 
 # Mouse callback function
 def select_area(event, x, y, flags, param):
-    global coordinates
-    # Record the starting point on left button press
+    global coordinates, drawing, resized_img, original_img, scale_factor
+
+    # Start drawing when left button is pressed
     if event == cv2.EVENT_LBUTTONDOWN:
-        coordinates = [(x, y)]
-    # Record the ending point on left button release
+        drawing = True
+        coordinates = [(int(x / scale_factor), int(y / scale_factor))]  # Scale back to original dimensions
+
+    # Update rectangle as the mouse moves
+    elif event == cv2.EVENT_MOUSEMOVE and drawing:
+        temp_img = resized_img.copy()  # Create a temporary copy of the resized image
+        cv2.rectangle(temp_img, (coordinates[0][0], coordinates[0][1]), (x, y), (0, 255, 0), 2)
+        cv2.imshow("Image", temp_img)  # Display the updated image with the rectangle
+
+    # Finalize rectangle when left button is released
     elif event == cv2.EVENT_LBUTTONUP:
-        coordinates.append((x, y))
-        # Draw a rectangle on the image
-        cv2.rectangle(img, coordinates[0], coordinates[1], (0, 255, 0), 2)
-        cv2.imshow("Image", img)
+        drawing = False
+        coordinates.append((int(x / scale_factor), int(y / scale_factor)))  # Scale back to original dimensions
+
+        # Draw the final rectangle on the resized image for visualization
+        cv2.rectangle(resized_img, (coordinates[0][0], coordinates[0][1]), (x, y), (0, 255, 0), 2)
+        cv2.imshow("Image", resized_img)
+
         print(f"Selected Area Coordinates: {coordinates}")
 
-# Load the image
-img = cv2.imread('image.png')
-cv2.imshow("Image", img)
+        # Crop the selected region from the original image
+        x1, y1 = coordinates[0]
+        x2, y2 = coordinates[1]
 
-# Set the mouse callback function
+        # Ensure proper cropping even if selection is reversed
+        x1, x2 = min(x1, x2), max(x1, x2)
+        y1, y2 = min(y1, y2), max(y1, y2)
+
+        cropped_image = original_img[y1:y2, x1:x2]
+
+        # Display and save the cropped image
+        cv2.imshow("Cropped Image", cropped_image)
+        cv2.imwrite("cropped_image.png", cropped_image)
+        print("Cropped image saved as 'cropped_image.png'")
+
+# Load the image
+original_img = cv2.imread('image.png')
+
+# Resize image for display if it is too large for the screen
+screen_width = 1280  # Adjust based on your screen resolution
+screen_height = 720  # Adjust based on your screen resolution
+
+img_height, img_width = original_img.shape[:2]
+if img_width > screen_width or img_height > screen_height:
+    scale_factor = min(screen_width / img_width, screen_height / img_height)
+    resized_img = cv2.resize(original_img.copy(), (int(img_width * scale_factor), int(img_height * scale_factor)))
+else:
+    resized_img = original_img.copy()
+
+# Display the resized image and set up mouse callback
+cv2.imshow("Image", resized_img)
 cv2.setMouseCallback("Image", select_area)
 
+# Wait for user input to close windows
 cv2.waitKey(0)
 cv2.destroyAllWindows()
