@@ -10,7 +10,7 @@ import math
 
 
 
-image = cv2.imread('/Users/noahweiler/Library/CloudStorage/OneDrive-ImperialCollegeLondon/Y3/SWE/SWE project/Skeletonized_image.png', cv2.IMREAD_GRAYSCALE)  # Load in grayscale
+image = cv2.imread('/Users/noahweiler/Library/CloudStorage/OneDrive-ImperialCollegeLondon/Noah SWE Project/HyphaTracker/Skeletonized_image.png', cv2.IMREAD_GRAYSCALE)  # Load in grayscale
 
 
 # Preprocess Image
