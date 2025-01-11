@@ -217,7 +217,7 @@ def track_tips_across_frames(tip_positions, distance_threshold=15):
 
 
 # Process a sequence of images and track tips
-def process_sequence(image_files, min_size=50, distance_threshold=15):
+def process_sequence(image_files, min_size=50, distance_threshold=15): # adjust threshold as needed after testing
     """
     Process a sequence of images and track hyphal tips over time.
     
@@ -285,6 +285,85 @@ if __name__ == "__main__":
 
     # Visualize tracked tips
     visualize_tracked_tips(tracked_tips, image_files)
+
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+
+def find_biomass(binary_image, fov_1x, magnification):
+    """
+    Calculate the biomass (physical area) of the fungal structure in the binary image.
+    
+    :param binary_image: Binary image as a NumPy array (1 for foreground, 0 for background).
+    :param fov_1x: Field of View at 1x magnification (width, height) in micrometers.
+    :param magnification: Magnification level of the image.
+    :return: Biomass in micrometers squared.
+    """
+    # Image dimensions
+    image_height, image_width = binary_image.shape
+
+    # Calculate the FOV at the given magnification
+    fov_width = fov_1x[0] / magnification  # µm
+    fov_height = fov_1x[1] / magnification  # µm
+
+    # Calculate pixel dimensions
+    pixel_width = fov_width / image_width  # µm per pixel
+    pixel_height = fov_height / image_height  # µm per pixel
+
+    # Calculate pixel area in micrometers squared
+    pixel_area = pixel_width * pixel_height  # µm² per pixel
+
+    # Calculate biomass (number of foreground pixels * pixel area)
+    biomass_pixels = np.sum(binary_image)  # Count the number of white pixels
+    biomass_area = biomass_pixels * pixel_area  # Total biomass in µm²
+
+    return biomass_area
+
+def calculate_biomass_over_time(image_files, fov_1x, magnification):
+    """
+    Calculate biomass over time for a sequence of images.
+    
+    :param image_files: List of file paths to the PNG images.
+    :param fov_1x: Field of View at 1x magnification (width, height) in micrometers.
+    :param magnification: Magnification level of the images.
+    :return: List of biomass values (one for each frame).
+    """
+    biomass_values = []
+
+    for file in image_files:
+        # Load and preprocess the image
+        image = cv2.imread(file, cv2.IMREAD_GRAYSCALE)
+        binary_image = preprocess_image(image)
+        
+        # Calculate biomass
+        biomass = find_biomass(binary_image, fov_1x, magnification)
+        biomass_values.append(biomass)
+
+    return biomass_values
+
+
+# Example Usage
+if __name__ == "__main__":
+    # List of PNG files representing the time-lapse sequence
+    image_files = [
+        "/path/to/image1.png",
+        "/path/to/image2.png",
+        "/path/to/image3.png",
+        # Add more paths here
+    ]
+
+    # Define the FOV and magnification
+    fov_1x = (2000, 2000)  # Field of View at 1x magnification in µm
+    magnification = 40  # Magnification level
+
+    # Calculate biomass over time
+    biomass_values = calculate_biomass_over_time(image_files, fov_1x, magnification)
+
+    # Define time points (optional, otherwise use frame indices)
+    time_points = [0, 10, 20]  # Example time points in minutes
+
+    # Plot biomass change over time
+    plot_biomass_change(biomass_values, time_points)
 
 
 #BRANCHING RATE/FREQUENCY
