@@ -95,6 +95,7 @@ endpoints = find_hyphal_endpoints(filtered_skeleton)  # Detect hyphal endpoints
 print("Amount of hyphal tip positions is:", len(endpoints))  # Print the number of detected endpoints
 print("Hyphal Tip Positions:", endpoints)  # Print the coordinates of the detected endpoints
 
+print('Hello world')
 
 
 #DISTANCE TO REGIONS OF INTEREST
@@ -170,3 +171,4 @@ for spore in spores:
     print("Spore Center:", center, "Radius:", radius)
 print("Total Spores:", len(spores))
 
+print("Hello")
