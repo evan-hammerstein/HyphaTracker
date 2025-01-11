@@ -241,20 +241,39 @@ def calculate_average_growth_rate(tracked_tips, frame_interval, time_per_frame):
     return average_growth_rates, general_average_growth_rate
 
 
-# Assuming tip_positions_t1 and tip_positions_t2 are lists of tip positions at times t1 and t2
-growth_rates = []
-for tip_t1, tip_t2 in zip(tip_positions_t1, tip_positions_t2):
-    growth_rate = distance.euclidean(tip_t1, tip_t2) / time_interval
-    growth_rates.append(growth_rate)
-
-
 #TIP GROWTH ANGLE
-# Example: Tip positions at t1 and t2
-for tip_t1, tip_t2 in zip(tip_positions_t1, tip_positions_t2):
-    dx = tip_t2[1] - tip_t1[1]
-    dy = tip_t2[0] - tip_t1[0]
-    angle = math.degrees(math.atan2(dy, dx))
-    print("Growth Angle:", angle)
+import math
+
+def calculate_growth_angles(tracked_tips, tip_id):
+    """
+    Calculate the growth angles of a specific hyphal tip over time.
+    
+    :param tracked_tips: Dictionary with tip IDs as keys and lists of positions [(frame, y, x)] as values.
+    :param tip_id: The ID of the tip for which growth angles should be calculated.
+    :return: List of growth angles (in degrees) for the specified tip over time.
+    """
+    if tip_id not in tracked_tips:
+        raise ValueError(f"Tip ID {tip_id} not found in tracked tips.")
+    
+    positions = tracked_tips[tip_id]  # Get the positions of the specified tip
+    growth_angles = []  # List to store growth angles
+    
+    for i in range(1, len(positions)):
+        _, y1, x1 = positions[i - 1]
+        _, y2, x2 = positions[i]
+        
+        # Compute differences
+        delta_x = x2 - x1
+        delta_y = y2 - y1
+        
+        # Calculate angle in radians and convert to degrees
+        angle_radians = math.atan2(delta_y, delta_x)
+        angle_degrees = math.degrees(angle_radians)
+        
+        growth_angles.append(angle_degrees)
+    
+    return growth_angles
+
 
 # ========== MYCELIAL METRICS ==========
 
