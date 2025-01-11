@@ -13,6 +13,7 @@ class PanZoomWindow(object):
     You can open multiple windows at once if you specify different window names.
     You can pass in an onLeftClickFunction, and when the user left-clicks, this 
     will call onLeftClickFunction(y,x), with y,x in original image coordinates."""
+    
     def __init__(self, img, windowName = 'PanZoomWindow', onLeftClickFunction = None):
         self.WINDOW_NAME = windowName
         self.H_TRACKBAR_NAME = 'x'
