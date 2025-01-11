@@ -2,54 +2,99 @@ import cv2
 import numpy as np
 from skimage import io, color
 from skimage.filters import threshold_otsu
-from skimage.morphology import skeletonize
+from skimage.morphology import skeletonize, remove_small_objects
 from skimage.measure import label, regionprops
 from scipy.ndimage import convolve
 import matplotlib.pyplot as plt
-import math
 
-
-
-image = cv2.imread('/Users/noahweiler/Library/CloudStorage/OneDrive-ImperialCollegeLondon/Noah SWE Project/HyphaTracker/Skeletonized_image.png', cv2.IMREAD_GRAYSCALE)  # Load in grayscale
-
+# Load the grayscale image
+image = cv2.imread('/Users/noahweiler/Library/CloudStorage/OneDrive-ImperialCollegeLondon/Noah SWE Project/HyphaTracker/Skeletonized_image.png', cv2.IMREAD_GRAYSCALE)
 
 # Preprocess Image
 def preprocess_image(image):
     """
-    Preprocess the image by applying a threshold and binarizing.
+    Preprocess the image by applying Otsu's thresholding and binarizing the image.
     :param image: Grayscale image as a NumPy array.
-    :return: Binary image as a NumPy array.
+    :return: Binary image as a NumPy array (1 for foreground, 0 for background).
     """
-    threshold = threshold_otsu(image)
-    binary_image = image > threshold
-    return binary_image.astype(np.uint8)
+    threshold = threshold_otsu(image)  # Compute optimal threshold using Otsu's method
+    binary_image = image > threshold  # Binarize image using the threshold
+    return binary_image.astype(np.uint8)  # Convert to uint8 for further processing
 
 # Display Image
 def show_image(image, title='Image'):
-    plt.imshow(image, cmap='gray')
-    plt.title(title)
-    plt.axis('off')
+    """
+    Display the given image using matplotlib.
+    :param image: Image to display.
+    :param title: Title of the image window.
+    """
+    plt.imshow(image, cmap='gray')  # Display image in grayscale
+    plt.title(title)  # Set the title of the plot
+    plt.axis('off')  # Hide the axes for better visualization
     plt.show()
 
-# Load, preprocess, and visualize
-binary_image = preprocess_image(image)
-show_image(binary_image, title='Binary Image')
+# Skeletonize Image
+def skeletonize_image(binary_image):
+    """
+    Skeletonize a binary image to reduce structures to 1-pixel-wide lines.
+    :param binary_image: Binary image as input.
+    :return: Skeletonized binary image.
+    """
+    skeleton = skeletonize(binary_image > 0)  # Convert to boolean and skeletonize
+    return skeleton
 
+# Remove small objects (e.g., spores or noise)
+def filter_hyphae(binary_image, min_size=50):
+    """
+    Remove small connected components (e.g., spores or noise) to retain only large hyphae.
+    :param binary_image: Binary image of the skeleton.
+    :param min_size: Minimum size (in pixels) for connected components to retain.
+    :return: Filtered binary image with small components removed.
+    """
+    labeled_image = label(binary_image)  # Label connected components in the image
+    filtered_image = remove_small_objects(labeled_image, min_size=min_size)  # Remove small components
+    return filtered_image > 0  # Return as binary image (True for retained components)
 
-#Skeletonizing the image for further processing into essentially a binary image where black is 0 and white is 1
-skeleton = skeletonize(binary_image > 0)
-show_image(skeleton, title='Skeletonized Image')
-
-#TIP POSITION
-# Detect endpoints by counting connected neighbors
-def find_endpoints(skeleton):
-    from scipy.ndimage import convolve
-    kernel = np.array([[1, 1, 1], [1, 10, 1], [1, 1, 1]])
+# Detect endpoints
+def find_hyphal_endpoints(skeleton):
+    """
+    Detect endpoints of hyphae by identifying pixels with exactly one connected neighbor.
+    :param skeleton: Skeletonized binary image.
+    :return: List of (y, x) coordinates of detected endpoints.
+    """
+    # Define a 3x3 kernel to identify pixels with exactly one neighbor
+    kernel = np.array([[1, 1, 1], 
+                       [1, 10, 1], 
+                       [1, 1, 1]])
+    
+    # Convolve the kernel with the skeleton to count neighbors for each pixel
     convolved = convolve(skeleton.astype(int), kernel, mode='constant', cval=0)
-    return np.argwhere((convolved == 11))  # Only one neighbor
+    
+    # Identify pixels with exactly one neighbor (endpoints)
+    endpoints = np.argwhere((convolved == 11))
+    
+    # Filter endpoints to ensure they belong to large hyphae components
+    labeled_skeleton = label(skeleton)  # Label connected components in the skeleton
+    valid_endpoints = []  # Initialize list to store valid endpoints
+    for y, x in endpoints:
+        if labeled_skeleton[y, x] > 0:  # Check if endpoint belongs to a labeled component
+            valid_endpoints.append((y, x))  # Add valid endpoint to the list
+    return valid_endpoints
 
-endpoints = find_endpoints(skeleton)
-print("Hyphal Tip Positions:", endpoints)
+# Process and visualize the image
+binary_image = preprocess_image(image)  # Preprocess the image
+show_image(binary_image, title='Post-processing Binary Image')  # Display the binary image
+
+skeleton = skeletonize_image(binary_image)  # Skeletonize the binary image
+show_image(skeleton, title='Skeletonized Image')  # Display the skeletonized image
+
+filtered_skeleton = filter_hyphae(skeleton, min_size=50)  # Filter small components (spores/noise)
+show_image(filtered_skeleton, title='Filtered Hyphae Skeleton')  # Display the filtered skeleton
+
+endpoints = find_hyphal_endpoints(filtered_skeleton)  # Detect hyphal endpoints
+print("Amount of hyphal tip positions is:", len(endpoints))  # Print the number of detected endpoints
+print("Hyphal Tip Positions:", endpoints)  # Print the coordinates of the detected endpoints
+
 
 
 #DISTANCE TO REGIONS OF INTEREST
@@ -124,3 +169,4 @@ for spore in spores:
     center, radius = spore
     print("Spore Center:", center, "Radius:", radius)
 print("Total Spores:", len(spores))
+
