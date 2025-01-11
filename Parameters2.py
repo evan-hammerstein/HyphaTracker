@@ -177,11 +177,27 @@ def calculate_branching_rate(tip_positions, distance_threshold=15):
 
 #DISTANCE TO REGIONS OF INTEREST
 # Example: Regions of interest (e.g., spore centroids)
-regions_of_interest = [(100, 200), (150, 300)]  # Example coordinates
-distances = []
+roi = [(100, 200), (150, 300)]  # Example coordinates
 
-for tip in endpoints:
-    distances.append([distance.euclidean(tip, roi) for roi in regions_of_interest])
+def calculate_distances_to_roi(tracked_tips, tip_id, roi):
+    """
+    Calculate the distances of a specific hyphal tip to a defined region of interest (ROI) over time.
+    
+    :param tracked_tips: Dictionary with tip IDs as keys and lists of positions [(frame, y, x)] as values.
+    :param tip_id: The ID of the tip for which distances should be calculated.
+    :param roi: Tuple (y, x) defining the region of interest.
+    :return: List of distances to the ROI for the specified tip over time.
+    """
+    if tip_id not in tracked_tips:
+        raise ValueError(f"Tip ID {tip_id} not found in tracked tips.")
+    
+    distances = []
+    for _, y, x in tracked_tips[tip_id]:
+        # Calculate the Euclidean distance to the ROI
+        distance = np.sqrt((y - roi[0])**2 + (x - roi[1])**2)
+        distances.append(distance)
+    
+    return distances
 
 #TIP GROWTH RATE
 
