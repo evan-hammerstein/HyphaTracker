@@ -9,8 +9,7 @@ import matplotlib.pyplot as plt
 import math
 
 
-
-image = cv2.imread('/Users/noahweiler/Library/CloudStorage/OneDrive-ImperialCollegeLondon/Y3/SWE/SWE project/Skeletonized_image.png', cv2.IMREAD_GRAYSCALE)  # Load in grayscale
+image = cv2.imread('/Users/lindaschermeier/Desktop/Skel_Im.jpg', cv2.IMREAD_GRAYSCALE)  # Load in grayscale
 
 
 # Preprocess Image
@@ -43,14 +42,46 @@ show_image(skeleton, title='Skeletonized Image')
 #TIP POSITION
 # Detect endpoints by counting connected neighbors
 def find_endpoints(skeleton):
+    from skimage.morphology import remove_small_objects
+    cleaned_skeleton = remove_small_objects(skeleton, min_size=10)
     from scipy.ndimage import convolve
     kernel = np.array([[1, 1, 1], [1, 10, 1], [1, 1, 1]])
-    convolved = convolve(skeleton.astype(int), kernel, mode='constant', cval=0)
+    convolved = convolve(cleaned_skeleton.astype(int), kernel, mode='constant', cval=0)
     return np.argwhere((convolved == 11))  # Only one neighbor
 
-endpoints = find_endpoints(skeleton)
-print("Hyphal Tip Positions:", endpoints)
+tips = find_endpoints(skeleton)
 
+# Display Skeleton with Tips and Labels
+def display_tips(skeleton, tips):
+    """
+    Display the skeleton image with tips marked as red dots and labeled with their coordinates.
+    
+    :param skeleton: Skeletonized binary image as a NumPy array.
+    :param tips: List of (row, col) coordinates of tip positions.
+    """
+    # Create a plot
+    plt.figure(figsize=(10, 10))
+    plt.imshow(skeleton, cmap='gray')  # Display the skeleton
+
+    # Overlay red dots and labels for tips
+    for idx, (y, x) in enumerate(tips):
+        plt.scatter(x, y, c='red', s=50, label=f"Tip {idx+1}" if idx == 0 else None)  # Add red dot
+        plt.text(x + 2, y - 2, f"({y}, {x})", color='red', fontsize=8)  # Add label next to the dot
+
+    # Add title and hide axes
+    plt.title("Skeleton with Tips and Coordinates")
+    plt.axis('off')
+
+    # Display the image
+    plt.show()
+
+# Call the function to display tips with labels
+display_tips(skeleton, tips)
+
+# Print Tip Coordinates
+print("Hyphal Tip Positions (row, col):")
+for tip in tips:
+    print(tip)
 
 #DISTANCE TO REGIONS OF INTEREST
 # Example: Regions of interest (e.g., spore centroids)
@@ -94,8 +125,6 @@ def count_pixels_around_tip(binary_image, tip, radius):
 for tip in endpoints:
     print("Pixels near tip:", count_pixels_around_tip(binary_image, tip, radius))
 
-
-
 #MYCELIAL METRICS
 
 #BRANCHING RATE/FREQUENCY
@@ -124,6 +153,3 @@ for spore in spores:
     center, radius = spore
     print("Spore Center:", center, "Radius:", radius)
 print("Total Spores:", len(spores))
-
-
-/Users/lindaschermeier/Desktop/Skel_Im.jpg', cv2.IMREAD_GRAYSCALE
