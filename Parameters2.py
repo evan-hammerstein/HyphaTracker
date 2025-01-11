@@ -166,6 +166,127 @@ for tip in endpoints:
 
 #MYCELIAL METRICS
 
+# sequence of pngs - compare old to new and find difference
+
+from scipy.spatial.distance import cdist
+
+# Match tips between frames and handle branching
+def track_tips_across_frames(tip_positions, distance_threshold=15):
+    """
+    Track hyphal tips across frames, creating separate lists for new branches.
+    
+    :param tip_positions: List of tip positions for each frame (list of lists of (y, x) tuples).
+    :param distance_threshold: Maximum distance to consider two tips as the same.
+    :return: Dictionary with keys as tip IDs and values as lists of positions [(frame, y, x)].
+    """
+    tracked_tips = {}  # Dictionary to store tip tracking {tip_id: [(frame, y, x)]}
+    next_tip_id = 0  # Unique ID for each tip
+    
+    # Iterate over frames
+    for frame_idx, current_tips in enumerate(tip_positions):
+        if frame_idx == 0:
+            # Initialize tracking for the first frame
+            for tip in current_tips:
+                tracked_tips[next_tip_id] = [(frame_idx, *tip)]
+                next_tip_id += 1
+            continue
+
+        # Match tips to the previous frame
+        previous_tips = [positions[-1][1:] for positions in tracked_tips.values()]
+        distances = cdist(previous_tips, current_tips)  # Compute distances between tips
+        
+        # Match previous tips to current tips
+        matched_current = set()
+        for i, prev_tip in enumerate(previous_tips):
+            # Find the nearest current tip within the distance threshold
+            nearest_idx = np.argmin(distances[i])
+            if distances[i, nearest_idx] < distance_threshold:
+                tracked_tips[i].append((frame_idx, *current_tips[nearest_idx]))
+                matched_current.add(nearest_idx)
+            else:
+                # Terminate the tip if no match is found
+                continue
+
+        # Add new tips that were not matched
+        for j, current_tip in enumerate(current_tips):
+            if j not in matched_current:
+                tracked_tips[next_tip_id] = [(frame_idx, *current_tip)]
+                next_tip_id += 1
+
+    return tracked_tips
+
+
+# Process a sequence of images and track tips
+def process_sequence(image_files, min_size=50, distance_threshold=15):
+    """
+    Process a sequence of images and track hyphal tips over time.
+    
+    :param image_files: List of file paths to the PNG images.
+    :param min_size: Minimum size for connected components (filtering small noise).
+    :param distance_threshold: Maximum distance to consider two tips as the same.
+    :return: Dictionary of tracked tips.
+    """
+    tip_positions = []  # List to store tip positions for each frame
+    
+    for file in image_files:
+        # Load and preprocess the image
+        image = cv2.imread(file, cv2.IMREAD_GRAYSCALE)
+        binary_image = preprocess_image(image)
+        skeleton = skeletonize_image(binary_image)
+        filtered_skeleton = filter_hyphae(skeleton, min_size=min_size)
+        
+        # Find tips in the current frame
+        tips = find_hyphal_endpoints(filtered_skeleton)
+        tip_positions.append(tips)
+    
+    # Track tips across frames
+    tracked_tips = track_tips_across_frames(tip_positions, distance_threshold)
+    
+    return tracked_tips
+
+
+# Visualize tracked tips
+def visualize_tracked_tips(tracked_tips, image_files):
+    """
+    Visualize tracked tips over time.
+    
+    :param tracked_tips: Dictionary of tracked tips.
+    :param image_files: List of file paths to the PNG images.
+    """
+    for frame_idx, file in enumerate(image_files):
+        image = cv2.imread(file, cv2.IMREAD_GRAYSCALE)
+        plt.imshow(image, cmap='gray')
+        
+        # Overlay tracked tips
+        for tip_id, positions in tracked_tips.items():
+            for pos in positions:
+                if pos[0] == frame_idx:  # Check if this tip exists in the current frame
+                    y, x = pos[1:]
+                    plt.scatter(x, y, c='red', s=50)
+                    plt.text(x + 2, y - 2, str(tip_id), color='yellow', fontsize=8)
+        
+        plt.title(f"Frame {frame_idx}")
+        plt.axis('off')
+        plt.show()
+
+
+# Example Usage
+if __name__ == "__main__":
+    # List of PNG files representing the time-lapse sequence
+    image_files = [
+        '/path/to/image1.png',
+        '/path/to/image2.png',
+        '/path/to/image3.png',
+        # Add all your file paths here
+    ]
+
+    # Process sequence and track tips
+    tracked_tips = process_sequence(image_files)
+
+    # Visualize tracked tips
+    visualize_tracked_tips(tracked_tips, image_files)
+
+
 #BRANCHING RATE/FREQUENCY
 def find_branch_points(skeleton):
     from scipy.ndimage import convolve
