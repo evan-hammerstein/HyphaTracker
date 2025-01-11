@@ -270,26 +270,6 @@ def visualize_tracked_tips(tracked_tips, image_files):
         plt.show()
 
 
-# Example Usage
-if __name__ == "__main__":
-    # List of PNG files representing the time-lapse sequence
-    image_files = [
-        '/path/to/image1.png',
-        '/path/to/image2.png',
-        '/path/to/image3.png',
-        # Add all your file paths here
-    ]
-
-    # Process sequence and track tips
-    tracked_tips = process_sequence(image_files)
-
-    # Visualize tracked tips
-    visualize_tracked_tips(tracked_tips, image_files)
-
-import cv2
-import numpy as np
-import matplotlib.pyplot as plt
-
 def find_biomass(binary_image, fov_1x, magnification):
     """
     Calculate the biomass (physical area) of the fungal structure in the binary image.
@@ -342,54 +322,141 @@ def calculate_biomass_over_time(image_files, fov_1x, magnification):
     return biomass_values
 
 
-# Example Usage
-if __name__ == "__main__":
-    # List of PNG files representing the time-lapse sequence
-    image_files = [
-        "/path/to/image1.png",
-        "/path/to/image2.png",
-        "/path/to/image3.png",
-        # Add more paths here
-    ]
+from scipy.spatial.distance import cdist
+import numpy as np
 
-    # Define the FOV and magnification
-    fov_1x = (2000, 2000)  # Field of View at 1x magnification in µm
-    magnification = 40  # Magnification level
+def calculate_branching_rate(tip_positions, distance_threshold=15):
+    """
+    Calculate the branching rate/frequency of fungal hyphae over time.
 
-    # Calculate biomass over time
-    biomass_values = calculate_biomass_over_time(image_files, fov_1x, magnification)
+    :param tip_positions: List of lists of (y, x) tip positions for each frame.
+    :param distance_threshold: Maximum distance to consider tips as originating from the same source.
+    :return: List of branching events per frame and total branching events.
+    """
+    branching_events_per_frame = []  # List to store branching events for each frame
+    total_branching_events = 0  # Total number of branching events
 
-    # Define time points (optional, otherwise use frame indices)
-    time_points = [0, 10, 20]  # Example time points in minutes
+    # Iterate over consecutive frames
+    for frame_idx in range(1, len(tip_positions)):
+        current_tips = tip_positions[frame_idx]  # Tips in the current frame
+        previous_tips = tip_positions[frame_idx - 1]  # Tips in the previous frame
 
-    # Plot biomass change over time
-    plot_biomass_change(biomass_values, time_points)
+        if not previous_tips or not current_tips:
+            branching_events_per_frame.append(0)
+            continue
 
+        # Calculate distances between previous and current tips
+        distances = cdist(previous_tips, current_tips)
 
-#BRANCHING RATE/FREQUENCY
-def find_branch_points(skeleton):
-    from scipy.ndimage import convolve
-    kernel = np.array([[1, 1, 1], [1, 10, 1], [1, 1, 1]])
-    convolved = convolve(skeleton.astype(int), kernel, mode='constant', cval=0)
-    return np.argwhere((convolved > 12))  # More than two neighbors
+        # For each tip in the previous frame, count the number of associated tips in the current frame
+        branching_events = 0
+        for i, _ in enumerate(previous_tips):
+            # Find indices of current tips within the distance threshold
+            matching_tips = np.where(distances[i] < distance_threshold)[0]
+            
+            # If there are more than one matching tip, it indicates branching
+            if len(matching_tips) > 1:
+                branching_events += len(matching_tips) - 1  # Count new branches
 
+        # Update the branching events
+        branching_events_per_frame.append(branching_events)
+        total_branching_events += branching_events
 
-branch_points = find_branch_points(skeleton)
-print("Branch Points:", branch_points)
-print("Branching Frequency:", len(branch_points))
+    return branching_events_per_frame, total_branching_events
 
-
-#BIOMASS
-biomass = np.sum(binary_image)
-print("Biomass (pixel count):", biomass)
 
 
 #NUMBER/SIZE/DISTRIBUTION OF SPORES (SPHEREICAL STRUCTURES)
-# Detect circular structures
-contours, _ = cv2.findContours(binary_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-spores = [cv2.minEnclosingCircle(c) for c in contours if len(c) > 5]  # Only circular regions
+from scipy.spatial.distance import cdist
 
-for spore in spores:
-    center, radius = spore
-    print("Spore Center:", center, "Radius:", radius)
-print("Total Spores:", len(spores))
+def track_spores_over_time(image_files, min_size=10, max_size=200, circularity_threshold=0.7, distance_threshold=15):
+    """
+    Track spores over time across a sequence of images and output their sizes over time.
+    
+    :param image_files: List of file paths to the PNG images.
+    :param min_size: Minimum size of objects to consider as spores.
+    :param max_size: Maximum size of objects to consider as spores.
+    :param circularity_threshold: Minimum circularity to consider an object as a spore.
+    :param distance_threshold: Maximum distance to match spores between frames.
+    :return: Dictionary of tracked spores with their sizes over time.
+    """
+    def identify_spores(image, min_size, max_size, circularity_threshold):
+        """
+        Identify spores in the image based on size and circularity.
+        """
+        # Preprocess the image
+        threshold = threshold_otsu(image)
+        binary_image = (image > threshold).astype(np.uint8)
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+        cleaned_image = cv2.morphologyEx(binary_image, cv2.MORPH_OPEN, kernel)
+
+        # Find contours
+        contours, _ = cv2.findContours(cleaned_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        spores = []
+
+        # Analyze each contour
+        for contour in contours:
+            area = cv2.contourArea(contour)
+            perimeter = cv2.arcLength(contour, True)
+            if min_size <= area <= max_size and perimeter > 0:
+                circularity = (4 * np.pi * area) / (perimeter ** 2)
+                if circularity >= circularity_threshold:
+                    (x, y), _ = cv2.minEnclosingCircle(contour)  # Center of spore
+                    spores.append({"center": (int(x), int(y)), "size": area})
+
+        return spores
+
+    # Dictionary to store tracked spores: {spore_id: {"history": [(frame_idx, size)], "last_position": (x, y)}}
+    tracked_spores = {}
+    next_spore_id = 0
+
+    # Process each frame
+    for frame_idx, file in enumerate(image_files):
+        # Load the image
+        image = cv2.imread(file, cv2.IMREAD_GRAYSCALE)
+        if image is None:
+            raise FileNotFoundError(f"File not found: {file}")
+
+        # Identify spores in the current frame
+        current_spores = identify_spores(image, min_size, max_size, circularity_threshold)
+
+        if frame_idx == 0:
+            # Initialize tracking for the first frame
+            for spore in current_spores:
+                tracked_spores[next_spore_id] = {
+                    "history": [(frame_idx, spore["size"])],
+                    "last_position": spore["center"],
+                }
+                next_spore_id += 1
+            continue
+
+        # Match spores to those in the previous frame
+        previous_positions = [data["last_position"] for data in tracked_spores.values()]
+        current_positions = [spore["center"] for spore in current_spores]
+
+        if previous_positions and current_positions:
+            distances = cdist(previous_positions, current_positions)
+
+            matched_current = set()
+            for spore_id, prev_position in enumerate(previous_positions):
+                # Find the nearest current spore
+                nearest_idx = np.argmin(distances[spore_id])
+                if distances[spore_id, nearest_idx] < distance_threshold:
+                    # Update the spore's history and last position
+                    tracked_spores[spore_id]["history"].append((frame_idx, current_spores[nearest_idx]["size"]))
+                    tracked_spores[spore_id]["last_position"] = current_spores[nearest_idx]["center"]
+                    matched_current.add(nearest_idx)
+
+            # Add new spores that were not matched
+            for j, spore in enumerate(current_spores):
+                if j not in matched_current:
+                    tracked_spores[next_spore_id] = {
+                        "history": [(frame_idx, spore["size"])],
+                        "last_position": spore["center"],
+                    }
+                    next_spore_id += 1
+
+    # Extract the size history for each spore
+    spore_size_histories = {spore_id: [entry[1] for entry in data["history"]] for spore_id, data in tracked_spores.items()}
+    return spore_size_histories
+
