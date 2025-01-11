@@ -274,7 +274,6 @@ def calculate_growth_angles(tracked_tips, tip_id):
     
     return growth_angles
 
-
 # ========== MYCELIAL METRICS ==========
 
 def find_biomass(binary_image, fov_1x, magnification):
