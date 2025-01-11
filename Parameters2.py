@@ -43,6 +43,39 @@ def find_hyphal_tips(skeleton):
     
     return tips
 
+def find_area(binary_image, magnification, reference_fov=(2000, 2000)):
+    """
+    Calculate the area of fungal hyphae in the binary image using magnification.
+    
+    :param binary_image: Binary image as a NumPy array (white pixels represent hyphae).
+    :param magnification: Magnification level of the microscope (e.g., 40x).
+    :param reference_fov: Field of View at 1x magnification (width, height in µm).
+    :return: Hyphal area in micrometers².
+    """
+    # Reference FOV at 1x magnification
+    fov_width_1x, fov_height_1x = reference_fov
+
+    # Scale FOV based on magnification
+    fov_width = fov_width_1x / magnification
+    fov_height = fov_height_1x / magnification
+
+    # Get image dimensions
+    img_height, img_width = binary_image.shape
+
+    # Calculate pixel dimensions
+    pixel_width = fov_width / img_width  # µm/pixel
+    pixel_height = fov_height / img_height  # µm/pixel
+
+    # Calculate pixel area
+    pixel_area = pixel_width * pixel_height  # µm²/pixel
+
+    # Calculate total hyphal area
+    area_pixels = np.sum(binary_image > 0)  # Count white pixels
+    total_area = area_pixels * pixel_area  # µm²
+
+    return total_area
+    
+
 # Load Image
 image = cv2.imread('/Users/lindaschermeier/Desktop/Skel_Im.jpg', cv2.IMREAD_GRAYSCALE)  # Load in grayscale
 
