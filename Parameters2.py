@@ -184,6 +184,47 @@ for tip in endpoints:
     distances.append([distance.euclidean(tip, roi) for roi in regions_of_interest])
 
 #TIP GROWTH RATE
+
+def calculate_average_growth_rate(tracked_tips, frame_interval, time_per_frame):
+    """
+    Calculate the average growth rate of hyphal tips over a specified number of frames.
+    
+    :param tracked_tips: Dictionary with tip IDs as keys and lists of positions [(frame, y, x)] as values.
+    :param frame_interval: Number of frames over which to calculate the growth rate.
+    :param time_per_frame: Time difference between consecutive frames.
+    :return: Dictionary with tip IDs as keys and average growth rates as values.
+    """
+    average_growth_rates = {}
+    total_time = frame_interval * time_per_frame  # Total time for the specified frame interval
+
+    for tip_id, positions in tracked_tips.items():
+        growth_distances = []
+        for i in range(len(positions) - frame_interval):
+            # Get the positions separated by frame_interval
+            _, y1, x1 = positions[i]
+            _, y2, x2 = positions[i + frame_interval]
+            
+            # Calculate Euclidean distance
+            distance = np.sqrt((y2 - y1)**2 + (x2 - x1)**2)
+            growth_distances.append(distance / total_time)
+        
+        # Calculate the average growth rate for the tip
+        if growth_distances:
+            average_growth_rate = sum(growth_distances) / len(growth_distances)
+        else:
+            average_growth_rate = 0  # If no valid growth distances are found
+
+        average_growth_rates[tip_id] = average_growth_rate
+
+        # Calculate the general average growth rate
+        if total_growth_rates:
+            general_average_growth_rate = sum(total_growth_rates) / len(total_growth_rates)
+        else:
+            general_average_growth_rate = 0
+
+    return average_growth_rates, general_average_growth_rate
+
+
 # Assuming tip_positions_t1 and tip_positions_t2 are lists of tip positions at times t1 and t2
 growth_rates = []
 for tip_t1, tip_t2 in zip(tip_positions_t1, tip_positions_t2):
