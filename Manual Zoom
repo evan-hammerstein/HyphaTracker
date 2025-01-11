@@ -14,21 +14,28 @@ def select_area(event, x, y, flags, param):
     # Start drawing when left button is pressed
     if event == cv2.EVENT_LBUTTONDOWN:
         drawing = True
-        coordinates = [(int(x / scale_factor), int(y / scale_factor))]  # Scale back to original dimensions
+        # Scale mouse coordinates to match the original image dimensions
+        coordinates = [(int(x / scale_factor), int(y / scale_factor))]
 
     # Update rectangle as the mouse moves
     elif event == cv2.EVENT_MOUSEMOVE and drawing:
         temp_img = resized_img.copy()  # Create a temporary copy of the resized image
-        cv2.rectangle(temp_img, (coordinates[0][0], coordinates[0][1]), (x, y), (0, 255, 0), 2)
-        cv2.imshow("Image", temp_img)  # Display the updated image with the rectangle
+        # Draw rectangle on the resized image for visualization
+        cv2.rectangle(temp_img,
+                      (int(coordinates[0][0] * scale_factor), int(coordinates[0][1] * scale_factor)),
+                      (x, y), (0, 255, 0), 2)
+        cv2.imshow("Image", temp_img)
 
     # Finalize rectangle when left button is released
     elif event == cv2.EVENT_LBUTTONUP:
         drawing = False
-        coordinates.append((int(x / scale_factor), int(y / scale_factor)))  # Scale back to original dimensions
+        # Scale mouse coordinates to match the original image dimensions
+        coordinates.append((int(x / scale_factor), int(y / scale_factor)))
 
         # Draw the final rectangle on the resized image for visualization
-        cv2.rectangle(resized_img, (coordinates[0][0], coordinates[0][1]), (x, y), (0, 255, 0), 2)
+        cv2.rectangle(resized_img,
+                      (int(coordinates[0][0] * scale_factor), int(coordinates[0][1] * scale_factor)),
+                      (x, y), (0, 255, 0), 2)
         cv2.imshow("Image", resized_img)
 
         print(f"Selected Area Coordinates: {coordinates}")
