@@ -164,7 +164,6 @@ for tip in endpoints:
     print("Pixels near tip:", count_pixels_around_tip(binary_image, tip, radius))
 
 
-
 #MYCELIAL METRICS
 
 #BRANCHING RATE/FREQUENCY
@@ -173,6 +172,7 @@ def find_branch_points(skeleton):
     kernel = np.array([[1, 1, 1], [1, 10, 1], [1, 1, 1]])
     convolved = convolve(skeleton.astype(int), kernel, mode='constant', cval=0)
     return np.argwhere((convolved > 12))  # More than two neighbors
+
 
 branch_points = find_branch_points(skeleton)
 print("Branch Points:", branch_points)
