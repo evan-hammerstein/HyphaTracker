@@ -6,6 +6,7 @@ drawing = False  # Flag to indicate if the user is currently drawing
 original_img = None  # To store the original image
 resized_img = None  # To store the resized image
 scale_factor = 1.0  # To track resizing scale
+output_window_size = (720, 720)  # Desired output dimensions for display (width, height)
 
 # Mouse callback function
 def select_area(event, x, y, flags, param):
@@ -50,13 +51,39 @@ def select_area(event, x, y, flags, param):
 
         cropped_image = original_img[y1:y2, x1:x2]
 
-        # Display and save the cropped image
-        cv2.imshow("Cropped Image", cropped_image)
-        cv2.imwrite("cropped_image.png", cropped_image)
-        print("Cropped image saved as 'cropped_image.png'")
+        # Resize cropped image proportionally to fill at least one dimension of the output window size
+        cropped_resized_image = resize_proportionally(cropped_image, output_window_size)
+
+        # Display and save the cropped and resized image
+        cv2.imshow("Zoomed Image", cropped_resized_image)
+        cv2.imwrite("zoomed_image.png", cropped_resized_image)
+        print("Zoomed image saved as 'zoomed_image.png'")
+
+# Function to resize an image proportionally to fit within a target size while maintaining aspect ratio
+def resize_proportionally(image, target_size):
+    target_width, target_height = target_size
+
+    h, w = image.shape[:2]
+    aspect_ratio = w / h
+
+    if target_width / target_height > aspect_ratio:
+        # Fit height first and calculate width proportionally
+        new_height = target_height
+        new_width = int(new_height * aspect_ratio)
+    else:
+        # Fit width first and calculate height proportionally
+        new_width = target_width
+        new_height = int(new_width / aspect_ratio)
+
+    resized_image = cv2.resize(image, (new_width, new_height), interpolation=cv2.INTER_AREA)
+
+    return resized_image
 
 # Load the image
 original_img = cv2.imread('image.png')
+
+if original_img is None:
+    raise ValueError("Image could not be loaded. Check the file path.")
 
 # Resize image for display if it is too large for the screen
 screen_width = 1280  # Adjust based on your screen resolution
@@ -76,3 +103,4 @@ cv2.setMouseCallback("Image", select_area)
 # Wait for user input to close windows
 cv2.waitKey(0)
 cv2.destroyAllWindows()
+
