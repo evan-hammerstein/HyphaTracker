@@ -4,6 +4,10 @@ import numpy as np
 from multiprocessing import Pool
 from skimage.exposure import rescale_intensity
 import matplotlib.pyplot as plt
+from SelectArea import detect_longest_lines
+
+
+"Reference 1 - taken from https://stackoverflow.com/questions/28595958/creating-trackbars-to-scroll-large-image-in-opencv-python/33293804#33293804 "
 
 class PanZoomWindow(object):
     """ Controls an OpenCV window. Registers a mouse listener so that:
@@ -13,7 +17,6 @@ class PanZoomWindow(object):
     You can open multiple windows at once if you specify different window names.
     You can pass in an onLeftClickFunction, and when the user left-clicks, this 
     will call onLeftClickFunction(y,x), with y,x in original image coordinates."""
-    
     def __init__(self, img, windowName = 'PanZoomWindow', onLeftClickFunction = None):
         self.WINDOW_NAME = windowName
         self.H_TRACKBAR_NAME = 'x'
@@ -126,9 +129,13 @@ class PanAndZoomState(object):
         self._fixBoundsAndDraw()
 
 
+"End of reference 1"
 
+
+
+"Function to process each frame of the TIFF file, applying filters and thresholds to binarise the image for analysis"
 def process_frame(frame):
-    # Normalize
+    # Normalisation of pixel values
     if frame.max() > 255:
         frame = (255 * (frame / frame.max())).astype(np.uint8)
     
@@ -137,43 +144,39 @@ def process_frame(frame):
         frame = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
     
     # Apply bilateral filter
-    filtered = cv2.bilateralFilter(frame, d=15, sigmaColor=50, sigmaSpace=25) #better edge preservation 
-    #filtered = cv2.GaussianBlur(frame, (5,5), sigmaX=15, sigmaY=15)
-    
-    #CLAHE filter?
+    filtered = cv2.bilateralFilter(frame, d=15, sigmaColor=30, sigmaSpace=25) #better edge preservation 
+  
 
     #tesing with bilateral filter and a threshold to binarise 
-    thres_gauss = cv2.adaptiveThreshold(filtered,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY,11,2)
-    thres_mean = cv2.adaptiveThreshold(filtered,255,cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY,11,2)
-
-
-
+   
+    thres_mean = cv2.adaptiveThreshold(filtered,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY,15,2)
+  
     # Divide
-    divide = cv2.divide(filtered, frame, scale=255) #change filtered component to test with the thresholds/change the filter
+    divide = cv2.divide(thres_mean, frame, scale=255) #change filtered component to test with the thresholds/change the filter
     divide = 255 - divide
 
     # Stretch
     maxval = np.amax(divide) / 4
     stretch = rescale_intensity(divide, in_range=(0, maxval), out_range=(0, 255)).astype(np.uint8)
 
-    return stretch
-    
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+    cleaned = cv2.morphologyEx(stretch, cv2.MORPH_OPEN, kernel)
+    filled = cv2.morphologyEx(cleaned, cv2.MORPH_CLOSE, kernel)
+
+
+    return filled 
 
 # Load the TIFF
 tiff_file = r"C:\Users\Harry\OneDrive - Imperial College London\Bioeng\Year 3\Software Engineering\HyphaTracker\timelapse1.tif"
 frames = tiff.imread(tiff_file)  # Load all frames as a NumPy array
 
+
 # Display each frame after processing
 for frame_idx, frame in enumerate(frames):
     print(f"Processing and displaying frame {frame_idx + 1}")
 
-    # Process the current frame
+    #Process the current frame
     processed_frame = process_frame(frame)
-
-    # Display the processed frame
-    #window_name = "Processed Frame"
-    #cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)  # Flexible window size
-   # cv2.imshow(window_name, processed_frame)
 
     window_name = f"Processed Frame {frame_idx + 1}"
     window = PanZoomWindow(processed_frame, window_name)
@@ -191,3 +194,4 @@ for frame_idx, frame in enumerate(frames):
 
 # Clean up
 cv2.destroyAllWindows()
+
