@@ -500,17 +500,94 @@ def track_tips_across_frames(tip_positions, distance_threshold=15):
 # ========== MAIN EXECUTION ==========
 
 # Example usage (customize parameters as needed)
-binary_image = preprocess_image(image)
-show_image(binary_image, title='Post-processing Binary Image')
+import cv2
+import numpy as np
 
-skeleton = skeletonize_image(binary_image)
-show_image(skeleton, title='Skeletonized Image')
+# ========== Input Parameters ==========
+image_files = [
+    '/path/to/frame1.jpg',
+    '/path/to/frame2.jpg',
+    '/path/to/frame3.jpg'
+]  # Example sequence of image paths
 
-filtered_skeleton = filter_hyphae(skeleton, min_size=50)
-show_image(filtered_skeleton, title='Filtered Hyphae Skeleton')
+fov_1x = (1000, 1000)  # Field of view at 1x magnification in micrometers (width, height)
+magnification = 10  # Magnification level
+time_per_frame = 2  # Time difference between consecutive frames in seconds
+frame_interval = 2  # Number of frames to calculate growth rates
+distance_threshold = 15  # Distance threshold for tip matching
+min_size_spores = 10  # Minimum size of spores
+max_size_spores = 200  # Maximum size of spores
+circularity_threshold = 0.7  # Circularity threshold for spores
+roi = (200, 300)  # Example region of interest (y, x)
 
-endpoints = find_hyphal_endpoints(filtered_skeleton)
-print("Amount of hyphal tip positions is:", len(endpoints))
-print("Hyphal Tip Positions:", endpoints)
+# ========== Process Image Sequence ==========
 
-display_tips(filtered_skeleton, endpoints)
+# Preprocess images and extract hyphal tips
+tip_positions_sequence = []
+biomass_values = []
+
+for image_file in image_files:
+    # Load the image
+    image = cv2.imread(image_file, cv2.IMREAD_GRAYSCALE)
+    
+    # Preprocess and visualize
+    binary_image = preprocess_image(image)
+    show_image(binary_image, title='Binary Image')
+    
+    skeleton = skeletonize_image(binary_image)
+    show_image(skeleton, title='Skeletonized Image')
+    
+    filtered_skeleton = filter_hyphae(skeleton, min_size=50)
+    show_image(filtered_skeleton, title='Filtered Skeleton')
+    
+    # Find hyphal endpoints
+    endpoints = find_hyphal_endpoints(filtered_skeleton)
+    tip_positions_sequence.append(endpoints)
+    
+    # Calculate biomass
+    biomass = find_biomass(binary_image, fov_1x, magnification)
+    biomass_values.append(biomass)
+
+# Track hyphal tips across frames
+tracked_tips = track_tips_across_frames(tip_positions_sequence, distance_threshold)
+
+# Visualize tracked tips
+visualize_tracked_tips(tracked_tips, image_files)
+
+# ========== Calculate Metrics ==========
+
+# Calculate average growth rates for each tip
+average_growth_rates, general_average_growth_rate = calculate_average_growth_rate(
+    tracked_tips, frame_interval, time_per_frame
+)
+print("Average Growth Rates for Each Tip:", average_growth_rates)
+print("General Average Growth Rate:", general_average_growth_rate)
+
+# Calculate distances to ROI for a specific tip
+tip_id = 0  # Example tip ID
+distances_to_roi = calculate_distances_to_roi(tracked_tips, tip_id, roi)
+print(f"Distances of Tip {tip_id} to ROI:", distances_to_roi)
+
+# Calculate growth angles for a specific tip
+growth_angles = calculate_growth_angles(tracked_tips, tip_id)
+print(f"Growth Angles for Tip {tip_id}:", growth_angles)
+
+# Calculate branching rate
+branching_events_per_frame, total_branching_events = calculate_branching_rate(
+    tip_positions_sequence, distance_threshold
+)
+print("Branching Events Per Frame:", branching_events_per_frame)
+print("Total Branching Events:", total_branching_events)
+
+# ========== Track Spores ==========
+
+spore_tracking = track_spores_over_time(
+    image_files, min_size=min_size_spores, max_size=max_size_spores,
+    circularity_threshold=circularity_threshold, distance_threshold=distance_threshold
+)
+print("Spore Size Histories Over Time:", spore_tracking)
+
+# ========== Biomass Analysis ==========
+print("Biomass Over Time:", biomass_values)
+
+
