@@ -312,6 +312,72 @@ def calculate_growth_angles(tracked_tips, tip_id):
     
     return growth_angles
 
+def calculate_tip_size(binary_image, tip_position, radius_microns = 10):
+    """
+    Calculate the size of a single tip by counting the filled pixels within a specified radius.
+    
+    :param binary_image: Binary image as a NumPy array (1 for foreground, 0 for background).
+    :param tip_position: Tuple (y, x) representing the position of the tip.
+    :param radius_microns: Radius around the tip in microns.
+    :param pixel_area: Area of a single pixel in µm².
+    :return: Tip size in µm².
+    """
+    # Image dimensions
+    image_height, image_width = binary_image.shape
+
+    # Calculate the FOV at the given magnification
+    fov_width = fov_1x[0] / magnification  # µm
+    fov_height = fov_1x[1] / magnification  # µm
+
+    # Calculate pixel dimensions
+    pixel_width = fov_width / image_width  # µm per pixel
+    pixel_height = fov_height / image_height  # µm per pixel
+
+    # Calculate pixel area in micrometers squared
+    pixel_area = pixel_width * pixel_height  # µm² per pixel
+
+    y, x = tip_position
+    radius_pixels = int(np.sqrt(radius_microns**2 / pixel_area))                # Convert radius from microns to pixels
+
+    mask = np.zeros_like(binary_image, dtype=bool)                              # Create a circular mask for the ROI
+    y_grid, x_grid = np.ogrid[:binary_image.shape[0], :binary_image.shape[1]]
+    distance_from_tip = np.sqrt((y_grid - y)**2 + (x_grid - x)**2)
+    mask[distance_from_tip <= radius_pixels] = True
+
+    # Count filled pixels within the circular mask
+    tip_pixels = np.sum(binary_image[mask])
+
+    # Convert the count of pixels to area in microns squared
+    tip_size = tip_pixels * pixel_area
+    return tip_size
+
+
+def track_tip_size_over_time(tracked_tips, binary_images, tip_id, radius_microns, pixel_area):
+    """
+    Track the size of a specific tip over time across multiple frames.
+    
+    :param tracked_tips: Dictionary with tip IDs as keys and lists of positions [(frame, y, x)] as values.
+    :param binary_images: List of binary images (one per frame).
+    :param tip_id: The ID of the tip to track.
+    :param radius_microns: Radius around the tip in microns.
+    :param pixel_area: Area of a single pixel in µm².
+    :return: List of tip sizes (in µm²) over time.
+    """
+    if tip_id not in tracked_tips:
+        raise ValueError(f"Tip ID {tip_id} not found in tracked tips.")
+    
+    tip_sizes = []  # To store the size of the tip in each frame
+    tip_positions = tracked_tips[tip_id]  # Get the positions of the specified tip
+    
+    for frame_idx, (frame, y, x) in enumerate(tip_positions):
+        # Get the binary image for the current frame
+        binary_image = binary_images[frame]
+        
+        # Calculate the size of the tip in the current frame
+        tip_size = calculate_tip_size(binary_image, (y, x), radius_microns, pixel_area)
+        tip_sizes.append(tip_size)
+    
+    return tip_sizes
 
 
 
@@ -471,20 +537,6 @@ def track_spores_over_time(image_files, min_size=10, max_size=200, circularity_t
     return spore_size_histories
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 # ========== SEQUENCE PROCESSING ==========
 
 # Process a sequence of images and track tips
@@ -559,13 +611,6 @@ def track_tips_across_frames(tip_positions, distance_threshold=15):
                 next_tip_id += 1
 
     return tracked_tips
-
-
-
-
-
-
-
 
 
 
