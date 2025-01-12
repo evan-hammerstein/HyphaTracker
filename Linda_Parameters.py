@@ -6,6 +6,7 @@ from skimage.morphology import skeletonize, remove_small_objects
 from skimage.measure import label, regionprops
 from scipy.ndimage import convolve
 import matplotlib.pyplot as plt
+import math
 
 # Load the grayscale image
 image = cv2.imread('/Users/lindaschermeier/Desktop/Skel_Im.jpg', cv2.IMREAD_GRAYSCALE)
@@ -13,15 +14,20 @@ image = cv2.imread('/Users/lindaschermeier/Desktop/Skel_Im.jpg', cv2.IMREAD_GRAY
 # ========== IMAGE PROCESSING FUNCTIONS ==========
 
 # Preprocess Image
-def preprocess_image(image):
+def preprocess_image(image, crop_region=(100,200,100,300)):
     """
-    Preprocess the image by applying Otsu's thresholding and binarizing the image.
+    Preprocess the image by cropping (optional), applying Otsu's thresholding, and binarizing the image.
     :param image: Grayscale image as a NumPy array.
+    :param crop_region: Optional tuple (y_start, y_end, x_start, x_end) to define the cropping region.
     :return: Binary image as a NumPy array (1 for foreground, 0 for background).
     """
-    threshold = threshold_otsu(image)  # Compute optimal threshold using Otsu's method
-    binary_image = image > threshold  # Binarize image using the threshold
-    return binary_image.astype(np.uint8)  # Convert to uint8 for further processing
+    if crop_region:
+        y_start, y_end, x_start, x_end = crop_region
+        image = image[y_start:y_end, x_start:x_end]                             # Crop the image
+
+    threshold = threshold_otsu(image)                                           # Compute optimal threshold using Otsu's method
+    binary_image = image > threshold                                            # Binarize image using the threshold
+    return binary_image.astype(np.uint8)                                        # Convert to uint8 for further processing
 
 # Skeletonize Image
 def skeletonize_image(binary_image):
@@ -33,18 +39,20 @@ def skeletonize_image(binary_image):
     return skeletonize(binary_image > 0)  # Convert to boolean and skeletonize
 
 # Remove small objects (e.g., spores or noise)
-def filter_hyphae(binary_image, min_size=50):
+def filter_hyphae(binary_image, min_size=100):
     """
     Remove small connected components (e.g., spores or noise) to retain only large hyphae.
     :param binary_image: Binary image of the skeleton.
     :param min_size: Minimum size (in pixels) for connected components to retain.
     :return: Filtered binary image with small components removed.
     """
-    labeled_image = label(binary_image)  # Label connected components in the image
-    filtered_image = remove_small_objects(labeled_image, min_size=min_size)  # Remove small components
-    return filtered_image > 0  # Return as binary image (True for retained components)
+    labeled_image = label(binary_image)                                         # Label connected components in the image
+    filtered_image = remove_small_objects(labeled_image, min_size=min_size)     # Remove small components
+    return filtered_image > 0                                                   # Return as binary image (True for retained components)
+
 
 # ========== VISUALIZATION FUNCTIONS ==========
+
 
 # Display Image
 def show_image(image, title='Image'):
@@ -59,57 +67,66 @@ def show_image(image, title='Image'):
     plt.show()
 
 # Display Skeleton with Tips and Labels
-def display_tips(skeleton, tips):
+def display_tips(binary_image, tips, frame_idx):
     """
     Display the skeleton image with tips marked as red dots and labeled with their coordinates.
     
     :param skeleton: Skeletonized binary image as a NumPy array.
     :param tips: List of (row, col) coordinates of tip positions.
+    :param frame_idx: (Optional) The frame index to display in the title.
     """
     # Create a plot
     plt.figure(figsize=(10, 10))
-    plt.imshow(skeleton, cmap='gray')  # Display the skeleton
+    plt.imshow(binary_image, cmap='gray')  # Display the skeleton
 
     # Overlay red dots and labels for tips
     for idx, (y, x) in enumerate(tips):
-        plt.scatter(x, y, c='red', s=50, label=f"Tip {idx+1}" if idx == 0 else None)  # Add red dot
-        plt.text(x + 2, y - 2, f"({y}, {x})", color='red', fontsize=8)  # Add label next to the dot
+        plt.scatter(x, y, c='red', s=0.5, label=f"Tip {idx+1}" if idx == 0 else None)  # Add red dot
 
-    # Add title and hide axes
-    plt.title("Skeleton with Tips and Coordinates")
+    # Update title to include frame index if provided
+    title = "Binary image with Tips"
+    if frame_idx is not None:
+        title += f" for Frame {frame_idx}"
+    plt.title(title)  # Set the updated title
+
+    # Hide axes
     plt.axis('off')
 
     # Display the image
     plt.show()
 
+
 # Visualize tracked tips
-def visualize_tracked_tips(tracked_tips, image_files):
+def visualize_tracked_tips(tracked_tips, image_file, frame_idx):
     """
     Visualize tracked tips over time.
     
     :param tracked_tips: Dictionary of tracked tips.
     :param image_files: List of file paths to the PNG images.
     """
-    for frame_idx, file in enumerate(image_files):
-        image = cv2.imread(file, cv2.IMREAD_GRAYSCALE)
-        plt.imshow(image, cmap='gray')
-        
-        # Overlay tracked tips
-        for tip_id, positions in tracked_tips.items():
-            for pos in positions:
-                if pos[0] == frame_idx:  # Check if this tip exists in the current frame
-                    y, x = pos[1:]
-                    plt.scatter(x, y, c='red', s=50)
-                    plt.text(x + 2, y - 2, str(tip_id), color='yellow', fontsize=8)
-        
-        plt.title(f"Frame {frame_idx}")
-        plt.axis('off')
-        plt.show()
+  
+    # image = cv2.imread(image_file, cv2.IMREAD_GRAYSCALE)
+    plt.imshow(image, cmap='gray')
+    
+    # Overlay tracked tips
+    for tip_id, positions in tracked_tips.items():
+        for pos in positions:
+            if pos[0] == frame_idx:  # Check if this tip exists in the current frame
+                y, x = pos[1:]
+                plt.scatter(x, y, c='red', s=0.5)
+                plt.text(x + 2, y - 2, str(tip_id), color='yellow', fontsize=3)
+    
+    plt.title(f"Frame {frame_idx}")
+    plt.axis('off')
+    plt.show()
+
+
+
 
 # ========== HYPHAL TIP DETECTION ==========
 
 # Detect endpoints
-def find_hyphal_endpoints(skeleton):
+def find_hyphal_endpoints(filtered_skeleton):
     """
     Detect endpoints of hyphae by identifying pixels with exactly one connected neighbor.
     :param skeleton: Skeletonized binary image.
@@ -121,18 +138,20 @@ def find_hyphal_endpoints(skeleton):
                        [1, 1, 1]])
     
     # Convolve the kernel with the skeleton to count neighbors for each pixel
-    convolved = convolve(skeleton.astype(int), kernel, mode='constant', cval=0)
+    convolved = convolve(filtered_skeleton.astype(int), kernel, mode='constant', cval=0)
     
     # Identify pixels with exactly one neighbor (endpoints)
     endpoints = np.argwhere((convolved == 11))
     
     # Filter endpoints to ensure they belong to large hyphae components
-    labeled_skeleton = label(skeleton)  # Label connected components in the skeleton
+    labeled_skeleton = label(filtered_skeleton)  # Label connected components in the skeleton
     valid_endpoints = []  # Initialize list to store valid endpoints
     for y, x in endpoints:
         if labeled_skeleton[y, x] > 0:  # Check if endpoint belongs to a labeled component
             valid_endpoints.append((y, x))  # Add valid endpoint to the list
     return valid_endpoints
+
+
 
 # ========== HYPHAL METRICS ==========
 
@@ -175,6 +194,9 @@ def calculate_branching_rate(tip_positions, distance_threshold=15):
 
     return branching_events_per_frame, total_branching_events
 
+
+
+
 #DISTANCE TO REGIONS OF INTEREST
 # Example: Regions of interest (e.g., spore centroids)
 roi = [(100, 200), (150, 300)]  # Example coordinates
@@ -199,6 +221,9 @@ def calculate_distances_to_roi(tracked_tips, tip_id, roi):
     
     return distances
 
+
+
+
 #TIP GROWTH RATE
 
 def calculate_average_growth_rate(tracked_tips, frame_interval, time_per_frame):
@@ -208,9 +233,11 @@ def calculate_average_growth_rate(tracked_tips, frame_interval, time_per_frame):
     :param tracked_tips: Dictionary with tip IDs as keys and lists of positions [(frame, y, x)] as values.
     :param frame_interval: Number of frames over which to calculate the growth rate.
     :param time_per_frame: Time difference between consecutive frames.
-    :return: Dictionary with tip IDs as keys and average growth rates as values.
+    :return: Dictionary with tip IDs as keys and average growth rates as values, 
+             and the general average growth rate for all tips.
     """
     average_growth_rates = {}
+    total_growth_rates = []  # To store growth rates for all tips
     total_time = frame_interval * time_per_frame  # Total time for the specified frame interval
 
     for tip_id, positions in tracked_tips.items():
@@ -222,8 +249,10 @@ def calculate_average_growth_rate(tracked_tips, frame_interval, time_per_frame):
             
             # Calculate Euclidean distance
             distance = np.sqrt((y2 - y1)**2 + (x2 - x1)**2)
-            growth_distances.append(distance / total_time)
-        
+            growth_rate = distance / total_time
+            growth_distances.append(growth_rate)
+            total_growth_rates.append(growth_rate)  # Add to the overall growth rates
+
         # Calculate the average growth rate for the tip
         if growth_distances:
             average_growth_rate = sum(growth_distances) / len(growth_distances)
@@ -232,17 +261,17 @@ def calculate_average_growth_rate(tracked_tips, frame_interval, time_per_frame):
 
         average_growth_rates[tip_id] = average_growth_rate
 
-        # Calculate the general average growth rate
-        if total_growth_rates:
-            general_average_growth_rate = sum(total_growth_rates) / len(total_growth_rates)
-        else:
-            general_average_growth_rate = 0
+    # Calculate the general average growth rate
+    if total_growth_rates:
+        general_average_growth_rate = sum(total_growth_rates) / len(total_growth_rates)
+    else:
+        general_average_growth_rate = 0
 
     return average_growth_rates, general_average_growth_rate
 
 
+
 #TIP GROWTH ANGLE
-import math
 
 def calculate_growth_angles(tracked_tips, tip_id):
     """
@@ -273,6 +302,9 @@ def calculate_growth_angles(tracked_tips, tip_id):
         growth_angles.append(angle_degrees)
     
     return growth_angles
+
+
+
 
 # ========== MYCELIAL METRICS ==========
 
@@ -327,6 +359,11 @@ def calculate_biomass_over_time(image_files, fov_1x, magnification):
 
     return biomass_values
 
+
+
+
+# ==========SPORES===========
+
 def identify_spores(image, min_size, max_size, circularity_threshold):
     """
     Identify spores in the image based on size and circularity.
@@ -352,6 +389,8 @@ def identify_spores(image, min_size, max_size, circularity_threshold):
                 spores.append({"center": (int(x), int(y)), "size": area})
 
     return spores
+
+
 
 #NUMBER/SIZE/DISTRIBUTION OF SPORES (SPHERICAL STRUCTURES)
 from scipy.spatial.distance import cdist
@@ -422,6 +461,21 @@ def track_spores_over_time(image_files, min_size=10, max_size=200, circularity_t
     spore_size_histories = {spore_id: [entry[1] for entry in data["history"]] for spore_id, data in tracked_spores.items()}
     return spore_size_histories
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # ========== SEQUENCE PROCESSING ==========
 
 # Process a sequence of images and track tips
@@ -462,7 +516,7 @@ def track_tips_across_frames(tip_positions, distance_threshold=15):
     :return: Dictionary with keys as tip IDs and values as lists of positions [(frame, y, x)].
     """
     tracked_tips = {}  # Dictionary to store tip tracking {tip_id: [(frame, y, x)]}
-    next_tip_id = 0  # Unique ID for each tip
+    next_tip_id = 0  # Unique ID for each tip (Keys of dictionary)
     
     # Iterate over frames
     for frame_idx, current_tips in enumerate(tip_positions):
@@ -497,18 +551,45 @@ def track_tips_across_frames(tip_positions, distance_threshold=15):
 
     return tracked_tips
 
+
+
+
+
+
+
+
+
+
 # ========== MAIN EXECUTION ==========
 
-# Example usage (customize parameters as needed)
-import cv2
-import numpy as np
-
 # ========== Input Parameters ==========
+import os
+
+# Define the folder containing the images
+folder_path = '/Users/lindaschermeier/Desktop/Proc_Im'
+
+# Collect all `.tif` file paths from the folder
 image_files = [
-    '/path/to/frame1.jpg',
-    '/path/to/frame2.jpg',
-    '/path/to/frame3.jpg'
-]  # Example sequence of image paths
+    os.path.join(folder_path, file) 
+    for file in os.listdir(folder_path) 
+    if file.endswith('.tif')
+]
+
+
+#SORTING FRAMES BASED ON FRAME NUMBER
+
+# Sort the files based on the frame number extracted from the filenames
+def extract_frame_number(file_path):
+    file_name = os.path.basename(file_path)  # Get the file name
+    # Extract the frame number using string splitting
+    # Assuming filenames are in the format "processed_frame_<number>_timestamp.tif"
+    parts = file_name.split('_')
+    return int(parts[2])  # Frame number is the 3rd part (index 2)
+
+# Sort using the extracted frame number
+image_files.sort(key=extract_frame_number)
+
+
 
 fov_1x = (1000, 1000)  # Field of view at 1x magnification in micrometers (width, height)
 magnification = 10  # Magnification level
@@ -520,74 +601,90 @@ max_size_spores = 200  # Maximum size of spores
 circularity_threshold = 0.7  # Circularity threshold for spores
 roi = (200, 300)  # Example region of interest (y, x)
 
-# ========== Process Image Sequence ==========
+#========== Process Image Sequence ==========
 
-# Preprocess images and extract hyphal tips
+#Preprocess images and extract hyphal tips
 tip_positions_sequence = []
 biomass_values = []
+print(image_files[0])
 
-for image_file in image_files:
-    # Load the image
+for frame_idx, image_file in enumerate(image_files):
+#     # Load the image
     image = cv2.imread(image_file, cv2.IMREAD_GRAYSCALE)
-    
+
     # Preprocess and visualize
     binary_image = preprocess_image(image)
-    show_image(binary_image, title='Binary Image')
-    
+
     skeleton = skeletonize_image(binary_image)
-    show_image(skeleton, title='Skeletonized Image')
-    
+
     filtered_skeleton = filter_hyphae(skeleton, min_size=50)
-    show_image(filtered_skeleton, title='Filtered Skeleton')
-    
+
     # Find hyphal endpoints
     endpoints = find_hyphal_endpoints(filtered_skeleton)
     tip_positions_sequence.append(endpoints)
-    
+
     # Calculate biomass
     biomass = find_biomass(binary_image, fov_1x, magnification)
     biomass_values.append(biomass)
 
-# Track hyphal tips across frames
-tracked_tips = track_tips_across_frames(tip_positions_sequence, distance_threshold)
+    print(f'Execution for frame{frame_idx}')
+    #Track hyphal tips across frames
+    tracked_tips = track_tips_across_frames(tip_positions_sequence, distance_threshold)
 
-# Visualize tracked tips
-visualize_tracked_tips(tracked_tips, image_files)
+    #display_tips(binary_image, endpoints, frame_idx)
+
+    # Visualize tracked tips
+    visualize_tracked_tips(tracked_tips, image_file, frame_idx)
+
+
 
 # ========== Calculate Metrics ==========
-
 # Calculate average growth rates for each tip
 average_growth_rates, general_average_growth_rate = calculate_average_growth_rate(
     tracked_tips, frame_interval, time_per_frame
 )
+# Format the growth rates to 3 significant figures and add units (e.g., µm/s)
+average_growth_rates = {tip_id: f"{rate:.3g} µm/s" for tip_id, rate in average_growth_rates.items()}
+general_average_growth_rate = f"{general_average_growth_rate:.3g} µm/s"
 print("Average Growth Rates for Each Tip:", average_growth_rates)
 print("General Average Growth Rate:", general_average_growth_rate)
 
 # Calculate distances to ROI for a specific tip
 tip_id = 0  # Example tip ID
 distances_to_roi = calculate_distances_to_roi(tracked_tips, tip_id, roi)
+# Format the distances to 3 significant figures and add units (e.g., µm)
+distances_to_roi = [f"{distance:.3g} µm" for distance in distances_to_roi]
 print(f"Distances of Tip {tip_id} to ROI:", distances_to_roi)
 
 # Calculate growth angles for a specific tip
 growth_angles = calculate_growth_angles(tracked_tips, tip_id)
+# Format the growth angles to 3 significant figures and add units (e.g., degrees)
+growth_angles = [f"{angle:.3g}°" for angle in growth_angles]
 print(f"Growth Angles for Tip {tip_id}:", growth_angles)
 
 # Calculate branching rate
 branching_events_per_frame, total_branching_events = calculate_branching_rate(
     tip_positions_sequence, distance_threshold
 )
+# Format branching events per frame (unitless as they are counts)
+branching_events_per_frame = [f"{event:.3g}" for event in branching_events_per_frame]
+total_branching_events = f"{total_branching_events:.3g}"
 print("Branching Events Per Frame:", branching_events_per_frame)
 print("Total Branching Events:", total_branching_events)
 
 # ========== Track Spores ==========
-
 spore_tracking = track_spores_over_time(
-    image_files, min_size=min_size_spores, max_size=max_size_spores,
-    circularity_threshold=circularity_threshold, distance_threshold=distance_threshold
+     image_files, min_size=min_size_spores, max_size=max_size_spores,
+     circularity_threshold=circularity_threshold, distance_threshold=distance_threshold
 )
-print("Spore Size Histories Over Time:", spore_tracking)
+# Format spore sizes to 3 significant figures and add units (e.g., µm² for area)
+formatted_spore_tracking = {
+    spore_id: [f"{size:.3g} µm²" for size in sizes]
+    for spore_id, sizes in spore_tracking.items()
+}
+print("Spore Size Histories Over Time:", formatted_spore_tracking)
 
 # ========== Biomass Analysis ==========
+# Format biomass values to 3 significant figures and add units (e.g., µm² for area)
+biomass_values = [f"{biomass:.3g} µm²" for biomass in biomass_values]
 print("Biomass Over Time:", biomass_values)
-
-
