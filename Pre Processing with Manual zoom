@@ -30,7 +30,7 @@ def select_area(event, x, y, flags, param):
         temp_img = resized_img.copy()
         x1, y1, x2, y2 = selected_area
         cv2.rectangle(temp_img, (int(x1 * scale_factor), int(y1 * scale_factor)),
-                      (int(x2 * scale_factor), int(y2 * scale_factor)), (0, 255, 255), 2)  # Cyan outline
+                      (int(x2 * scale_factor), int(y2 * scale_factor)), (255, 255, 255), 2)  # Cyan outline
         cv2.imshow("Image", temp_img)
 
     elif event == cv2.EVENT_LBUTTONUP:  # Finalize selection
