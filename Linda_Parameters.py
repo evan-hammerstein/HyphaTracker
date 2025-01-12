@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import math
 
 # Load the grayscale image
-image = cv2.imread('/Users/lindaschermeier/Desktop/Skel_Im.jpg', cv2.IMREAD_GRAYSCALE)
+image = cv2.imread('/Users/noahweiler/Library/CloudStorage/OneDrive-ImperialCollegeLondon/Noah SWE Project/HyphaTracker/Skeletonized_image.png', cv2.IMREAD_GRAYSCALE)
 
 # ========== IMAGE PROCESSING FUNCTIONS ==========
 
@@ -575,7 +575,7 @@ def track_tips_across_frames(tip_positions, distance_threshold=15):
 import os
 
 # Define the folder containing the images
-folder_path = '/Users/lindaschermeier/Desktop/Proc_Im'
+folder_path = '/Users/noahweiler/Library/CloudStorage/OneDrive-ImperialCollegeLondon/Noah SWE Project/Processed_images'
 
 # Collect all `.tif` file paths from the folder
 image_files = [
