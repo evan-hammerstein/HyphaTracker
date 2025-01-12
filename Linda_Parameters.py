@@ -681,6 +681,11 @@ total_branching_events = f"{total_branching_events:.3g}"
 print("Branching Events Per Frame:", branching_events_per_frame)
 print("Total Branching Events:", total_branching_events)
 
+# ========== Find Spores ==========
+
+spore_list=identify_spores(image, min_size_spores, max_size_spores, circularity_threshold)
+print("Spores found: ", spore_list)
+
 # ========== Track Spores ==========
 spore_tracking = track_spores_over_time(
      image_files, min_size=min_size_spores, max_size=max_size_spores,
