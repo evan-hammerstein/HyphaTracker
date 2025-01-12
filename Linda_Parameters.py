@@ -14,16 +14,25 @@ image = cv2.imread('/Users/lindaschermeier/Desktop/Skel_Im.jpg', cv2.IMREAD_GRAY
 # ========== IMAGE PROCESSING FUNCTIONS ==========
 
 # Preprocess Image
-def preprocess_image(image, crop_region=(100,200,100,300)):
+def preprocess_image(image, crop_points=None):
     """
-    Preprocess the image by cropping (optional), applying Otsu's thresholding, and binarizing the image.
+    Preprocess the image by cropping (optional with non-rectangular shape), 
+    applying Otsu's thresholding, and binarizing the image.
     :param image: Grayscale image as a NumPy array.
-    :param crop_region: Optional tuple (y_start, y_end, x_start, x_end) to define the cropping region.
+    :param crop_points: Optional list of (x, y) points defining a polygon for cropping.
     :return: Binary image as a NumPy array (1 for foreground, 0 for background).
     """
-    if crop_region:
-        y_start, y_end, x_start, x_end = crop_region
-        image = image[y_start:y_end, x_start:x_end]                             # Crop the image
+    # Step 1: Create a mask for non-rectangular cropping
+    if crop_points:
+        # Create an empty mask
+        mask = np.zeros_like(image, dtype=np.uint8)
+        
+        # Define the polygon and fill it on the mask
+        polygon = np.array(crop_points, dtype=np.int32)
+        cv2.fillPoly(mask, [polygon], 255)  # Fill the polygon with white (255)
+        
+        # Apply the mask to the image
+        image = cv2.bitwise_and(image, image, mask=mask)
 
     threshold = threshold_otsu(image)                                           # Compute optimal threshold using Otsu's method
     binary_image = image > threshold                                            # Binarize image using the threshold
