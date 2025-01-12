@@ -3,52 +3,42 @@ import tifffile as tiff
 import numpy as np
 from skimage.exposure import rescale_intensity
 
-
 # Initialize variables
-coordinates = []
-drawing = False  # Flag for drawing
-original_img = None  # Store the current original frame
-resized_img = None  # Store resized frame
-scale_factor = 1.0  # Scale factor for resizing
+selected_area = None
+resizing = False
+original_img = None
+resized_img = None
+scale_factor = 1.0
+selection_done = False  # Flag to indicate selection is complete
 
-# Mouse callback function for area selection and further processing
 def select_area(event, x, y, flags, param):
-    global coordinates, drawing, resized_img, original_img, scale_factor
+    global selected_area, resizing, resized_img, scale_factor, selection_done
 
-    if event == cv2.EVENT_LBUTTONDOWN:  # Start drawing
-        drawing = True
-        coordinates = [(int(x / scale_factor), int(y / scale_factor))]
+    if selection_done:  # Do not allow selection after the first frame
+        return
 
-    elif event == cv2.EVENT_MOUSEMOVE and drawing:  # Draw rectangle dynamically
+    # Scale coordinates back to the original resolution
+    x, y = int(x / scale_factor), int(y / scale_factor)
+
+    if event == cv2.EVENT_LBUTTONDOWN:  # Start selection
+        selected_area = [x, y, x, y]
+
+    elif event == cv2.EVENT_MOUSEMOVE and selected_area:  # Update rectangle dynamically
+        selected_area[2], selected_area[3] = x, y
+
+        # Draw the rectangle dynamically on the resized image
         temp_img = resized_img.copy()
-        cv2.rectangle(temp_img, (coordinates[0][0], coordinates[0][1]), (x, y), (0, 0, 255), 2)
+        x1, y1, x2, y2 = selected_area
+        cv2.rectangle(temp_img, (int(x1 * scale_factor), int(y1 * scale_factor)),
+                      (int(x2 * scale_factor), int(y2 * scale_factor)), (0, 255, 255), 2)  # Cyan outline
         cv2.imshow("Image", temp_img)
 
-    elif event == cv2.EVENT_LBUTTONUP:  # Finalize the rectangle
-        drawing = False
-        coordinates.append((int(x / scale_factor), int(y / scale_factor)))
-
-        x1, y1 = coordinates[0]
-        x2, y2 = coordinates[1]
-        x1, x2 = min(x1, x2), max(x1, x2)  # Ensure correct cropping order
-        y1, y2 = min(y1, y2), max(y1, y2)
-
-        # Crop the selected area
-        cropped_image = original_img[y1:y2, x1:x2]
-
-        # Process the cropped area
-        processed_cropped = process_frame(cropped_image)  # Apply processing to the cropped frame
-
-        # Display the original cropped and processed cropped frames
-        cv2.imshow("Cropped Image", cropped_image)
-        cv2.imshow("Processed Cropped Image", processed_cropped)
-
-        # Save the cropped and processed cropped images
-        cv2.imwrite("cropped_image.png", cropped_image)
-        cv2.imwrite("processed_cropped_image.png", processed_cropped)
-        print("Cropped image saved as 'cropped_image.png'")
-        print("Processed cropped image saved as 'processed_cropped_image.png'")
-
+    elif event == cv2.EVENT_LBUTTONUP:  # Finalize selection
+        if selected_area:
+            selected_area = [min(selected_area[0], selected_area[2]), min(selected_area[1], selected_area[3]),
+                             max(selected_area[0], selected_area[2]), max(selected_area[1], selected_area[3])]
+            print(f"Selected area: {selected_area}")
+        selection_done = True
 
 # Function to process each frame
 def process_frame(frame):
@@ -81,10 +71,9 @@ def process_frame(frame):
 
     return filled
 
-
 # Main function to handle frames
 def main():
-    global original_img, resized_img, scale_factor
+    global original_img, resized_img, scale_factor, selected_area
 
     # Load the TIFF file
     tiff_file = r"C:\Users\Harry\OneDrive - Imperial College London\Bioeng\Year 3\Software Engineering\HyphaTracker\timelapse1.tif"
@@ -93,17 +82,40 @@ def main():
     # Process and display each frame
     for frame_idx, frame in enumerate(frames):
         print(f"Processing frame {frame_idx + 1}")
-        processed_frame = process_frame(frame)
-
-        # Prepare the original and resized images for display
         original_img = frame.copy()
+
+        # Crop and process the selected area
+        if selected_area:
+            x1, y1, x2, y2 = selected_area
+            cropped_frame = original_img[y1:y2, x1:x2]
+            processed_frame = process_frame(cropped_frame)
+        else:
+            processed_frame = process_frame(original_img)
+
+        # Prepare resized frame for display
         height, width = processed_frame.shape[:2]
         scale_factor = 800 / width  # Resize width to 800 pixels
         resized_img = cv2.resize(processed_frame, (800, int(height * scale_factor)))
 
-        # Show the processed frame
-        cv2.imshow("Image", resized_img)
-        cv2.setMouseCallback("Image", select_area)
+        # Display the first frame for selection
+        if frame_idx == 0 and not selection_done:
+            cv2.imshow("Image", resized_img)
+            cv2.setMouseCallback("Image", select_area)
+            print("Select the area on the first frame and press any key to continue.")
+            key = cv2.waitKey(0)  # Wait for the user to finish selection
+            if key == 27:  # Esc key to exit
+                print("Exiting...")
+                break
+
+        # Display subsequent frames
+        if selected_area:
+            temp_img = resized_img.copy()
+            x1, y1, x2, y2 = selected_area
+            cv2.rectangle(temp_img, (int(x1 * scale_factor), int(y1 * scale_factor)),
+                          (int(x2 * scale_factor), int(y2 * scale_factor)), (0, 255, 255), 2)  # Cyan outline
+            cv2.imshow("Image", temp_img)
+        else:
+            cv2.imshow("Image", resized_img)
 
         # Wait for user input
         key = cv2.waitKey(0)
@@ -111,13 +123,15 @@ def main():
             print("Exiting...")
             break
         elif key == ord('s'):  # Save the processed frame
-            cv2.imwrite(f"processed_frame_{frame_idx + 1}.png", processed_frame)
-            print(f"Saved processed frame {frame_idx + 1}.")
+            output_file = f"processed_frame_{frame_idx + 1}.png"
+            cv2.imwrite(output_file, processed_frame)
+            print(f"Saved processed frame {frame_idx + 1} as {output_file}.")
 
     # Cleanup
     cv2.destroyAllWindows()
 
-
 # Run the script
 if __name__ == "__main__":
     main()
+
+
