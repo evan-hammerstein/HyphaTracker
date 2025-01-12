@@ -612,7 +612,7 @@ for frame_idx, image_file in enumerate(image_files):
 
     skeleton = skeletonize_image(binary_image)
 
-    filtered_skeleton = filter_hyphae(skeleton, min_size=50)
+    filtered_skeleton = filter_hyphae(skeleton, min_size=500)
 
     # Find hyphal endpoints
     endpoints = find_hyphal_endpoints(filtered_skeleton)
@@ -629,7 +629,7 @@ for frame_idx, image_file in enumerate(image_files):
     #display_tips(binary_image, endpoints, frame_idx)
 
     # Visualize tracked tips
-    visualize_tracked_tips(tracked_tips, image_file, frame_idx)
+    #visualize_tracked_tips(tracked_tips, image_file, frame_idx)
 
 
 
@@ -638,23 +638,23 @@ for frame_idx, image_file in enumerate(image_files):
 average_growth_rates, general_average_growth_rate = calculate_average_growth_rate(
     tracked_tips, frame_interval, time_per_frame
 )
-# Format the growth rates to 3 significant figures and add units (e.g., µm/s)
-average_growth_rates = {tip_id: f"{rate:.3g} µm/s" for tip_id, rate in average_growth_rates.items()}
-general_average_growth_rate = f"{general_average_growth_rate:.3g} µm/s"
+# Format the growth rates to 3 decimal places and add units (e.g., µm/s)
+average_growth_rates = {tip_id: f"{rate:.3f} µm/s" for tip_id, rate in average_growth_rates.items()}
+general_average_growth_rate = f"{float(general_average_growth_rate):.3f} µm/s"
 print("Average Growth Rates for Each Tip:", average_growth_rates)
 print("General Average Growth Rate:", general_average_growth_rate)
 
 # Calculate distances to ROI for a specific tip
 tip_id = 0  # Example tip ID
 distances_to_roi = calculate_distances_to_roi(tracked_tips, tip_id, roi)
-# Format the distances to 3 significant figures and add units (e.g., µm)
-distances_to_roi = [f"{distance:.3g} µm" for distance in distances_to_roi]
+# Format the distances to 3 decimal places and add units (e.g., µm)
+distances_to_roi = [f"{distance:.3f} µm" for distance in distances_to_roi]
 print(f"Distances of Tip {tip_id} to ROI:", distances_to_roi)
 
 # Calculate growth angles for a specific tip
 growth_angles = calculate_growth_angles(tracked_tips, tip_id)
-# Format the growth angles to 3 significant figures and add units (e.g., degrees)
-growth_angles = [f"{angle:.3g}°" for angle in growth_angles]
+# Format the growth angles to 3 decimal places and add units (e.g., degrees)
+growth_angles = [f"{angle:.3f}°" for angle in growth_angles]
 print(f"Growth Angles for Tip {tip_id}:", growth_angles)
 
 # Calculate branching rate
@@ -662,8 +662,8 @@ branching_events_per_frame, total_branching_events = calculate_branching_rate(
     tip_positions_sequence, distance_threshold
 )
 # Format branching events per frame (unitless as they are counts)
-branching_events_per_frame = [f"{event:.3g}" for event in branching_events_per_frame]
-total_branching_events = f"{total_branching_events:.3g}"
+branching_events_per_frame = [f"{event:.3f}" for event in branching_events_per_frame]
+total_branching_events = f"{float(total_branching_events):.3f}"
 print("Branching Events Per Frame:", branching_events_per_frame)
 print("Total Branching Events:", total_branching_events)
 
@@ -672,14 +672,68 @@ spore_tracking = track_spores_over_time(
      image_files, min_size=min_size_spores, max_size=max_size_spores,
      circularity_threshold=circularity_threshold, distance_threshold=distance_threshold
 )
-# Format spore sizes to 3 significant figures and add units (e.g., µm² for area)
+# Format spore sizes to 3 decimal places and add units (e.g., µm² for area)
 formatted_spore_tracking = {
-    spore_id: [f"{size:.3g} µm²" for size in sizes]
+    spore_id: [f"{size:.3f} µm²" for size in sizes]
     for spore_id, sizes in spore_tracking.items()
 }
 print("Spore Size Histories Over Time:", formatted_spore_tracking)
 
 # ========== Biomass Analysis ==========
-# Format biomass values to 3 significant figures and add units (e.g., µm² for area)
-biomass_values = [f"{biomass:.3g} µm²" for biomass in biomass_values]
+# Format biomass values to 3 decimal places and add units (e.g., µm² for area)
+biomass_values = [f"{biomass:.3f} µm²" for biomass in biomass_values]
 print("Biomass Over Time:", biomass_values)
+
+
+import csv
+
+# Prepare the data for CSV
+csv_data = []
+
+# Average growth rates
+csv_data.append(["Tip ID", "Average Growth Rate (µm/s)"])
+for tip_id, rate in average_growth_rates.items():
+    csv_data.append([tip_id, rate])
+
+# General average growth rate
+csv_data.append([])  # Add an empty row for spacing
+csv_data.append(["General Average Growth Rate", general_average_growth_rate])
+
+# Distances to ROI
+csv_data.append([])
+csv_data.append(["Frame", "Distance to ROI (µm)"])
+for frame_idx, distance in enumerate(distances_to_roi):
+    csv_data.append([frame_idx, distance])
+
+# Growth angles
+csv_data.append([])
+csv_data.append(["Frame", "Growth Angle (°)"])
+for frame_idx, angle in enumerate(growth_angles):
+    csv_data.append([frame_idx, angle])
+
+# Branching events
+csv_data.append([])
+csv_data.append(["Frame", "Branching Events"])
+for frame_idx, events in enumerate(branching_events_per_frame):
+    csv_data.append([frame_idx, events])
+csv_data.append(["Total Branching Events", total_branching_events])
+
+# Spore tracking
+csv_data.append([])
+csv_data.append(["Spore ID", "Sizes Over Time (µm²)"])
+for spore_id, sizes in formatted_spore_tracking.items():
+    csv_data.append([spore_id, ", ".join(sizes)])
+
+# Biomass values
+csv_data.append([])
+csv_data.append(["Frame", "Biomass (µm²)"])
+for frame_idx, biomass in enumerate(biomass_values):
+    csv_data.append([frame_idx, biomass])
+
+# Write to CSV file
+csv_file = "output_metrics.csv"
+with open(csv_file, mode="w", newline="") as file:
+    writer = csv.writer(file)
+    writer.writerows(csv_data)
+
+print(f"Data successfully exported to {csv_file}")
