@@ -747,3 +747,17 @@ print("Spore Size Histories Over Time:", formatted_spore_tracking)
 # Format biomass values to 3 significant figures and add units (e.g., µm² for area)
 biomass_values = [f"{biomass:.3g} µm²" for biomass in biomass_values]
 print("Biomass Over Time:", biomass_values)
+
+# Define necessary parameters
+tip_id = 0  # Example tip ID to track
+binary_images = [  # Process binary images for each frame
+    preprocess_image(cv2.imread(image_file, cv2.IMREAD_GRAYSCALE))
+    for image_file in image_files
+]
+
+# Track tip size over time
+tip_sizes_over_time = track_tip_size_over_time(tracked_tips, binary_images, tip_id)
+
+# Output sizes over time
+for frame_idx, tip_size in enumerate(tip_sizes_over_time):
+    print(f"Tip {tip_id} size in Frame {frame_idx}: {tip_size:.3g} µm²")
