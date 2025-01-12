@@ -380,6 +380,33 @@ def track_tip_size_over_time(tracked_tips, binary_images, tip_id, radius_microns
     return tip_sizes
 
 
+def calculate_overall_average_tip_size(tracked_tips, binary_images, radius_microns=10):
+    """
+    Calculate the overall average size of all tips across all frames.
+    
+    :param tracked_tips: Dictionary with tip IDs as keys and lists of positions [(frame, y, x)] as values.
+    :param binary_images: List of binary images (one per frame).
+    :param radius_microns: Radius around the tip in microns for size calculation.
+    :return: The overall average tip size (µm²).
+    """
+    total_size = 0
+    total_count = 0
+
+    for tip_id, positions in tracked_tips.items():
+        for frame, y, x in positions:
+            # Get the binary image for the current frame
+            binary_image = binary_images[frame]
+
+            # Calculate the size of the tip in the current frame
+            tip_size = calculate_tip_size(binary_image, (y, x), radius_microns)
+            total_size += tip_size
+            total_count += 1
+
+    # Calculate overall average size
+    overall_average_size = total_size / total_count if total_count > 0 else 0
+    return overall_average_size
+
+
 
 # ========== MYCELIAL METRICS ==========
 
@@ -761,3 +788,7 @@ tip_sizes_over_time = track_tip_size_over_time(tracked_tips, binary_images, tip_
 # Output sizes over time
 for frame_idx, tip_size in enumerate(tip_sizes_over_time):
     print(f"Tip {tip_id} size in Frame {frame_idx}: {tip_size:.3g} µm²")
+
+# Calculate the overall average tip size
+overall_average_tip_size = calculate_overall_average_tip_size(tracked_tips, binary_images, radius_microns=10)
+print(f"Overall Average Tip Size: {overall_average_tip_size:.3g} µm²")
