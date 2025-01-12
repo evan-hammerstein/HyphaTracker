@@ -352,7 +352,7 @@ def calculate_tip_size(binary_image, tip_position, radius_microns = 10):
     return tip_size
 
 
-def track_tip_size_over_time(tracked_tips, binary_images, tip_id, radius_microns, pixel_area):
+def track_tip_size_over_time(tracked_tips, binary_images, tip_id, radius_microns = 10):
     """
     Track the size of a specific tip over time across multiple frames.
     
