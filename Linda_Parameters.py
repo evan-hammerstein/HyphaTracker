@@ -730,6 +730,8 @@ def track_tips_across_frames(tip_positions, distance_threshold=15):
 
 # ========== Input Parameters ==========
 import os
+import cv2
+import numpy as np
 
 # Define the folder containing the images
 folder_path = 'C:/Users/ls2221/OneDrive - Imperial College London/Year 3/Software Engineering/Project/Proc_Ims'
@@ -746,142 +748,115 @@ image_files = [
     if file.endswith('.tif')
 ]
 
-
-#SORTING FRAMES BASED ON FRAME NUMBER
-
-# Sort the files based on the frame number extracted from the filenames
+# Sort files based on frame numbers
 def extract_frame_number(file_path):
-    file_name = os.path.basename(file_path)  # Get the file name
-    # Extract the frame number using string splitting
-    # Assuming filenames are in the format "processed_frame_<number>_timestamp.tif"
+    file_name = os.path.basename(file_path)
     parts = file_name.split('_')
-    return int(parts[2])  # Frame number is the 3rd part (index 2)
+    return int(parts[2])  # Extract frame number (assuming consistent format)
 
-# Sort using the extracted frame number
 image_files.sort(key=extract_frame_number)
 
-
-
-fov_1x = (1000, 1000)  # Field of view at 1x magnification in micrometers (width, height)
+# Input Parameters
+fov_1x = (1000, 1000)  # Field of view at 1x magnification (µm)
 magnification = 10  # Magnification level
-time_per_frame = 2  # Time difference between consecutive frames in seconds
-frame_interval = 2  # Number of frames to calculate growth rates
-distance_threshold = 15  # Distance threshold for tip matching
-min_size_spores = 10  # Minimum size of spores
-max_size_spores = 200  # Maximum size of spores
+time_per_frame = 2  # Time difference between frames (seconds)
+frame_interval = 2  # Frames interval for growth rate calculation
+distance_threshold = 15  # Maximum distance to track tips
+min_size_spores = 10  # Minimum spore size (pixels)
+max_size_spores = 200  # Maximum spore size (pixels)
 circularity_threshold = 0.7  # Circularity threshold for spores
-roi = (200, 300)  # Example region of interest (y, x)
+roi = (200, 300)  # Region of Interest (y, x)
 
-#========== Process Image Sequence ==========
-
-#Preprocess images and extract hyphal tips
+# Containers for binary images and tip positions
+binary_images = []
 tip_positions_sequence = []
-biomass_values = []
-print(image_files[0])
 
-for frame_idx, image_file in enumerate(image_files):
-    # Load the image
+# ======= TEST IMAGE PROCESSING =======
+print("\n=== Testing Image Processing ===")
+for image_file in image_files:
     image = cv2.imread(image_file, cv2.IMREAD_GRAYSCALE)
-
-    # Preprocess and visualize
     binary_image = preprocess_image(image)
-
     skeleton = skeletonize_image(binary_image)
-
     filtered_skeleton = filter_hyphae(skeleton, min_size=50)
 
-    # Find hyphal endpoints
+    # Store results for later tests
+    binary_images.append(filtered_skeleton)
+
+    # Display processed images
+    show_image(binary_image, title="Binary Image")
+    show_image(skeleton, title="Skeletonized Image")
+    show_image(filtered_skeleton, title="Filtered Skeleton")
+
+print("Image processing tests complete.\n")
+
+# ======= TEST TIP DETECTION AND TRACKING =======
+print("\n=== Testing Tip Detection and Tracking ===")
+for filtered_skeleton in binary_images:
     endpoints = find_hyphal_endpoints(filtered_skeleton)
     tip_positions_sequence.append(endpoints)
 
-    # Calculate biomass
-    biomass = find_biomass(binary_image, fov_1x, magnification)
-    biomass_values.append(biomass)
+tracked_tips = track_tips_across_frames(tip_positions_sequence, distance_threshold)
 
-    print(f'Execution for frame{frame_idx}')
-    #Track hyphal tips across frames
-    tracked_tips = track_tips_across_frames(tip_positions_sequence, distance_threshold)
+# Display tracked tips
+for frame_idx, binary_image in enumerate(binary_images):
+    visualize_tracked_tips(tracked_tips, binary_image, frame_idx)
 
-    #display_tips(binary_image, endpoints, frame_idx)
+print("Tip detection and tracking tests complete.\n")
 
-    # Visualize tracked tips
-    #visualize_tracked_tips(tracked_tips, image_file, frame_idx)
-
-
-
-# ========== Calculate Metrics ==========
-# Calculate average growth rates for each tip
-average_growth_rates, general_average_growth_rate = calculate_average_growth_rate(
+# ======= TEST TIP METRICS =======
+print("\n=== Testing Tip Metrics ===")
+# Average Growth Rates
+average_growth_rates, general_avg_growth_rate = calculate_average_growth_rate(
     tracked_tips, frame_interval, time_per_frame
 )
-# Format the growth rates to 3 significant figures and add units (e.g., µm/s)
-average_growth_rates = {tip_id: f"{rate:.3g} µm/s" for tip_id, rate in average_growth_rates.items()}
-general_average_growth_rate = f"{general_average_growth_rate:.3g} µm/s"
-print("Average Growth Rates for Each Tip:", average_growth_rates)
-print("General Average Growth Rate:", general_average_growth_rate)
+print("Average Growth Rates per Tip:", average_growth_rates)
+print("General Average Growth Rate:", general_avg_growth_rate)
 
-# Calculate distances to ROI for a specific tip
-tip_id = 0  # Example tip ID
-distances_to_roi = calculate_distances_to_roi(tracked_tips, tip_id, roi)
-
-# Extract only the distances for formatting
-formatted_distances = [f"Frame {frame}: {distance:.3g} µm" for frame, distance in distances_to_roi]
-print(f"Distances of Tip {tip_id} to ROI:", formatted_distances)
-
-# Calculate growth angles for a specific tip
+# Tip Growth Angles
 growth_angles = calculate_growth_angles(tracked_tips)
+print("Growth Angles:", growth_angles)
 
-# Extract only the angles for formatting
-formatted_growth_angles = [f"Frame {frame}: {angle:.3g}°" for frame, angle in growth_angles]
-print(f"Growth Angles for Tip {tip_id}:", formatted_growth_angles)
+# Calculate Tip Size for Tip 0
+tip_id = 0
+if tip_id in tracked_tips:
+    tip_sizes = track_tip_size_over_time(tracked_tips, binary_images, tip_id, radius_microns=10)
+    print(f"Tip Sizes for Tip {tip_id}:", tip_sizes)
+else:
+    print(f"Tip ID {tip_id} not found in tracked tips.")
 
+# Average Tip Size Across All Tips
+avg_tip_size = calculate_overall_average_tip_size(tracked_tips, binary_images, radius_microns=10)
+print("Overall Average Tip Size:", avg_tip_size)
 
-# Calculate branching rate
-branching_events_per_frame, total_branching_events = calculate_branching_rate(
-    tip_positions_sequence, distance_threshold
+print("Tip metrics tests complete.\n")
+
+# ======= TEST BIOMASS CALCULATION =======
+print("\n=== Testing Biomass Calculation ===")
+biomass_values = [find_biomass(binary_image, fov_1x, magnification) for binary_image in binary_images]
+print("Biomass Values:", biomass_values)
+
+print("Biomass calculation tests complete.\n")
+
+# ======= TEST SPORE DETECTION AND TRACKING =======
+print("\n=== Testing Spore Detection and Tracking ===")
+# Spore Detection
+example_image = cv2.imread(image_files[0], cv2.IMREAD_GRAYSCALE)
+spores = identify_spores(example_image, min_size_spores, max_size_spores, circularity_threshold)
+print("Detected Spores:", spores)
+
+# Spore Tracking
+tracked_spores = track_spores_over_time(
+    image_files, min_size_spores, max_size_spores, circularity_threshold, distance_threshold
 )
-# Format branching events per frame (unitless as they are counts)
-branching_events_per_frame = [f"{event:.3g}" for event in branching_events_per_frame]
-total_branching_events = f"{total_branching_events:.3g}"
-print("Branching Events Per Frame:", branching_events_per_frame)
-print("Total Branching Events:", total_branching_events)
+print("Tracked Spores:", tracked_spores)
 
-# ========== Find Spores ==========
+print("Spore detection and tracking tests complete.\n")
 
-spore_list=identify_spores(image, min_size_spores, max_size_spores, circularity_threshold)
-print("Spores found: ", spore_list)
+# ======= TEST DISTANCES TO ROI =======
+print("\n=== Testing Distance to ROI ===")
+distances_to_roi = calculate_distances_to_roi(tracked_tips, tip_id, roi)
+print(f"Distances of Tip {tip_id} to ROI:", distances_to_roi)
 
-# ========== Track Spores ==========
-spore_tracking = track_spores_over_time(
-     image_files, min_size=min_size_spores, max_size=max_size_spores,
-     circularity_threshold=circularity_threshold, distance_threshold=distance_threshold
-)
-# Format spore sizes to 3 significant figures and add units (e.g., µm² for area)
-formatted_spore_tracking = {
-    spore_id: [f"{size:.3g} µm²" for size in sizes]
-    for spore_id, sizes in spore_tracking.items()
-}
-print("Spore Size Histories Over Time:", formatted_spore_tracking)
+print("Distance to ROI tests complete.\n")
 
-# ========== Biomass Analysis ==========
-# Format biomass values to 3 significant figures and add units (e.g., µm² for area)
-biomass_values = [f"{biomass:.3g} µm²" for biomass in biomass_values]
-print("Biomass Over Time:", biomass_values)
-
-# Define necessary parameters
-tip_id = 0  # Example tip ID to track
-binary_images = [  # Process binary images for each frame
-    preprocess_image(cv2.imread(image_file, cv2.IMREAD_GRAYSCALE))
-    for image_file in image_files
-]
-
-# Track tip size over time
-tip_sizes_over_time = track_tip_size_over_time(tracked_tips, binary_images, tip_id)
-
-# Output sizes over time
-for frame, tip_size in tip_sizes_over_time:
-    print(f"Tip {tip_id} size in Frame {frame}: {tip_size:.3g} µm²")
-
-# Calculate the overall average tip size
-overall_average_tip_size = calculate_overall_average_tip_size(tracked_tips, binary_images, radius_microns=10)
-print(f"Overall Average Tip Size: {overall_average_tip_size:.3g} µm²")
+print("=== All Tests Complete ===")
