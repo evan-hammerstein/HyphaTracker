@@ -97,33 +97,41 @@ def show_image(image, title='Image'):
     plt.show()
 
 # Display Skeleton with Tips and Labels
-def display_tips(binary_image, tips, frame_idx):
+# Save Skeleton with Tips and Labels
+def display_tips(binary_image, tips, frame_idx, output_folder):
     """
-    Display the skeleton image with tips marked as red dots and labeled with their coordinates.
-    
-    :param skeleton: Skeletonized binary image as a NumPy array.
+    Save the skeleton image with tips marked as red dots and labeled with their coordinates.
+
+    :param binary_image: Skeletonized binary image as a NumPy array.
     :param tips: List of (row, col) coordinates of tip positions.
-    :param frame_idx: (Optional) The frame index to display in the title.
+    :param frame_idx: Frame index to include in the output file name.
+    :param output_folder: Folder path to save the tip visualization images.
     """
+    import matplotlib.pyplot as plt
+    import os
+
+    # Ensure the output folder exists
+    os.makedirs(output_folder, exist_ok=True)
+
     # Create a plot
     plt.figure(figsize=(10, 10))
     plt.imshow(binary_image, cmap='gray')  # Display the skeleton
 
     # Overlay red dots and labels for tips
     for idx, (y, x) in enumerate(tips):
-        plt.scatter(x, y, c='red', s=0.5, label=f"Tip {idx+1}" if idx == 0 else None)  # Adding red dot
+        plt.scatter(x, y, c='red', s=1)  # Red dots for tips
 
-    # Update title to include frame index if provided
-    title = "Binary image with Tips"
-    if frame_idx is not None:
-        title += f" for Frame {frame_idx}"
-    plt.title(title)  # Set the updated title
+    # Update title with frame index
+    plt.title(f"Tips Visualization for Frame {frame_idx}")
 
     # Hide axes
     plt.axis('off')
 
-    # Display the image
-    plt.show()
+    # Save the image to the output folder
+    output_path = os.path.join(output_folder, f"tips_frame_{frame_idx}.png")
+    plt.savefig(output_path, bbox_inches='tight')
+    plt.close()  # Close the plot to avoid memory issues
+    print(f"Tip visualization for frame {frame_idx} saved to {output_path}")
 
 
 # Visualize tracked tips
@@ -1016,6 +1024,11 @@ biomass_values = []
 images = []  # Collect grayscale images for visualization
 print(image_files[0])
 
+# Define the output folder for tip visualizations
+tip_visualization_folder = "tip_visualization_images"
+os.makedirs(tip_visualization_folder, exist_ok=True)
+print(f"Tip visualization folder created: {tip_visualization_folder}")
+
 for frame_idx, image_file in enumerate(image_files):
     # Load the image
     image = cv2.imread(image_file, cv2.IMREAD_GRAYSCALE)
@@ -1030,11 +1043,15 @@ for frame_idx, image_file in enumerate(image_files):
     endpoints = find_hyphal_endpoints(filtered_skeleton, frame_idx, output_folder=hyphal_endpoints_folder)
     tip_positions_sequence.append(endpoints)
 
+    # Save the tip visualizations
+    display_tips(filtered_skeleton, endpoints, frame_idx, output_folder=tip_visualization_folder)
+
     # Calculate biomass
     biomass = find_biomass(binary_image, fov_1x, magnification)
     biomass_values.append(biomass)
 
     print(f"Processed frame {frame_idx}")
+
 
 # Track hyphal tips across frames
 tracked_tips = track_tips_across_frames(tip_positions_sequence, distance_threshold)
