@@ -16,12 +16,35 @@ image = cv2.imread('/Users/noahweiler/Library/CloudStorage/OneDrive-ImperialColl
 # Preprocess Image
 def preprocess_image(image):
     """
-    Preprocess the image by applying Otsu's thresholding and binarizing the image.
+    Preprocess the image by cropping (using a predefined polygon region), 
+    applying Otsu's thresholding, and binarizing the image.
+    
     :param image: Grayscale image as a NumPy array.
     :return: Binary image as a NumPy array (1 for foreground, 0 for background).
     """
+    # Define the crop points (polygon coordinates)
+    crop_points = [
+        (1625, 1032), (1827, 3045), (1897, 5848), 
+        (2614, 6323), (9328, 5879), (9875, 5354),
+        (9652, 2133), (9592, 376), (1988, 780)
+    ]
+
+    # Step 1: Create a mask for non-rectangular cropping
+    # Create an empty mask
+    mask = np.zeros_like(image, dtype=np.uint8)
+    
+    # Define the polygon and fill it on the mask
+    polygon = np.array(crop_points, dtype=np.int32)
+    cv2.fillPoly(mask, [polygon], 255)  # Fill the polygon with white (255)
+    
+    # Apply the mask to the image
+    image = cv2.bitwise_and(image, image, mask=mask)
+
+    # Step 2: Apply Otsu's thresholding
     threshold = threshold_otsu(image)                                           # Compute optimal threshold using Otsu's method
     binary_image = image > threshold                                            # Binarize image using the threshold
+    
+    # Step 3: Return the binary image
     return binary_image.astype(np.uint8)                                        # Convert to uint8 for further processing
 
 # Skeletonize Image
@@ -46,8 +69,9 @@ def filter_hyphae(binary_image, min_size=100):
     return filtered_image > 0                                                   # Return as binary image (True for retained components)
 
 
-# ========== VISUALIZATION FUNCTIONS ==========
 
+
+# ========== VISUALIZATION FUNCTIONS ==========
 
 # Display Image
 def show_image(image, title='Image'):
@@ -629,7 +653,7 @@ for frame_idx, image_file in enumerate(image_files):
     #display_tips(binary_image, endpoints, frame_idx)
 
     # Visualize tracked tips
-    #visualize_tracked_tips(tracked_tips, image_file, frame_idx)
+    visualize_tracked_tips(tracked_tips, image_file, frame_idx)
 
 
 
