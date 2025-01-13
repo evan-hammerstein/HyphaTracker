@@ -1077,7 +1077,8 @@ def delete_folder(folder_path):
 
 
 # Define the folder containing the images
-folder_path = 'C:/Users/ls2221/OneDrive - Imperial College London/Year 3/Software Engineering/Project/Proc_Ims'
+#folder_path = 'C:/Users/ls2221/OneDrive - Imperial College London/Year 3/Software Engineering/Project/Proc_Ims'
+folder_path = sys.argv[1]
 
 # Collect all `.tif` file paths from the folder
 image_files = [
@@ -1085,7 +1086,6 @@ image_files = [
     for file in os.listdir(folder_path) 
     if file.endswith('.tif')
 ]
-
 
 #SORTING FRAMES BASED ON FRAME NUMBER
 
@@ -1102,18 +1102,17 @@ image_files.sort(key=extract_frame_number)
 
 
 # Define input and output parameters
-#outputs_dir = sys.argv[6]  # Base output directory from command-line arguments
-outputs_dir = "outputs"  # Base output directory from command-line arguments
+outputs_dir = sys.argv[5]  # Base output directory from command-line arguments
 
 # MAKE ALL OF THE FOLLOWING BE INPUTS FROM GUI
-magnification = 10  # Magnification level
+magnification = sys.argv[2]  # Magnification level
 time_per_frame = 2  # Time difference between consecutive frames in hours
 frame_interval = 2  # Frame interval for growth rate calculations
 distance_threshold = 15  # Distance threshold for tip tracking
 min_size_spores = 10  # Minimum size for spores
 max_size_spores = 200  # Maximum size for spores
 circularity_threshold = 0.7  # Circularity threshold for spores
-tip_id = 500
+tip_id = 260
 roi_polygon = [
     (1000, 1000), (4000, 1000), (4000, 4000), (1000, 4000)
 ]  # ROI polygon coordinates
