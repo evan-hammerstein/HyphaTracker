@@ -69,17 +69,6 @@ def filter_hyphae(binary_image, min_size=100):
     return filtered_image > 0                                                   # Return as binary image (True for retained components)
 
 
-
-
-
-
-
-
-
-
-
-
-
 # ========== VISUALIZATION FUNCTIONS ==========
 # Display Image
 def show_image(image, title='Image', visuals_folder="visuals"):
@@ -131,7 +120,6 @@ def display_tips(binary_image, tips, frame_idx, visuals_folder="visuals"):
     plt.show()
 
 
-
 # Visualize tracked tips
 def visualize_tracked_tips(tracked_tips, image_file, frame_idx, visuals_folder="visuals"):
     """
@@ -165,19 +153,6 @@ def visualize_tracked_tips(tracked_tips, image_file, frame_idx, visuals_folder="
     plt.show()
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 # =========== HYPHAL METRICS ===========================
 #=======================================================
 
@@ -203,8 +178,6 @@ def save_to_csv(data, filepath):
         csv_writer = csv.writer(csvfile)
         csv_writer.writerows(data)
     print(f"Data saved to {filepath}")
-
-
 
 
 import os
@@ -256,9 +229,6 @@ def find_hyphal_endpoints(filtered_skeleton, frame_idx, output_folder="csv_files
     print(f"Hyphal endpoints for frame {frame_idx} saved to {csv_filename}")
     
     return valid_endpoints
-
-
-
 
 
 #DISTANCE TO REGIONS OF INTEREST
@@ -364,7 +334,6 @@ def calculate_distances_to_roi_and_visualize(tracked_tips, tip_id, roi_vertices,
     print(f"Visualizations saved in {visuals_folder}.")
 
     return distances
-
 
 
 # Define helper functions
@@ -536,7 +505,6 @@ def calculate_growth_angles(tracked_tips, tip_id, output_folder = "csv_files", g
     print(f"Growth angle graph for Tip {tip_id} saved to {graph_path}")
 
     return growth_angles
-
 
 
 def calculate_tip_size(binary_image, tip_position, radius_microns=10, fov_1x=(1000, 1000), magnification=10):
@@ -1098,27 +1066,6 @@ def track_tips_across_frames(tip_positions, distance_threshold=15, output_folder
 
     print(f"Tracked tips saved to {csv_file}")
     return tracked_tips
-
-
-
-# ========== MAKE GRAPHS ==========
-
-# Plotting the growth rate
-
-# Plotting the growth angle of a tip
-
-# Plotting the size of a tip
-
-# Plotting the biomass
-
-# Plotting the branching rate
-
-# Plotting the distance to ROI
-
-# Plotting the spore nummber
-
-# Plotting the spore size
-
 
 
 # ========== MAIN EXECUTION ==========
