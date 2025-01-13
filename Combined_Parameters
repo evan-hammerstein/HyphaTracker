@@ -18,9 +18,10 @@ image = cv2.imread('C:/Users/noahweiler/Library/CloudStorage/OneDrive-ImperialCo
 # ========== IMAGE PROCESSING FUNCTIONS ==========
 
 # Preprocess Image
-def preprocess_image(image, crop_points = [(1625, 1032), (1827, 3045), (1897, 5848), 
-        (2614, 6323), (9328, 5879), (9875, 5354),
-        (9652, 2133), (9592, 376), (1988, 780)]):
+def preprocess_image(image, crop_points = [
+    (1625, 1032), (1827, 3045), (1897, 5848), 
+    (2614, 6323), (9328, 5879), (9875, 5354),
+    (9652, 2133), (9592, 376), (1988, 780)]):
     """
     Preprocess the image by cropping (using a predefined polygon region), 
     applying Otsu's thresholding, and binarizing the image.
@@ -1093,7 +1094,7 @@ def delete_folder(folder_path):
 
 
 # Define the folder containing the images - outputs dir
-folder_path = 'C:/Users/ls2221/OneDrive - Imperial College London/Year 3/Software Engineering/Project/Proc_Ims'
+folder_path = '/Users/noahweiler/Library/CloudStorage/OneDrive-ImperialCollegeLondon/Noah SWE Project/Processed_images'
 
 # Collect all `.tif` file paths from the folder
 image_files = [
