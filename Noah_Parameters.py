@@ -418,7 +418,7 @@ def calculate_distances_to_roi_and_visualize(tracked_tips, tip_id, roi_vertices,
     distances = []
     visualization_data = [["Frame", "Shortest Distance to ROI (µm)"]]
 
-    # Create the polygon as a flat NumPy array of shape (N, 2)
+    # Convert ROI vertices into a proper NumPy array
     roi_polygon = np.array(roi_vertices, dtype=np.int32)
 
     for frame_idx, (frame, y_tip, x_tip) in enumerate(tracked_tips[tip_id]):
@@ -435,10 +435,10 @@ def calculate_distances_to_roi_and_visualize(tracked_tips, tip_id, roi_vertices,
         cv2.polylines(visualized_image, [roi_polygon], isClosed=True, color=(0, 255, 255), thickness=2)
         
         # Highlight the tip in red
-        cv2.circle(visualized_image, (x_tip, y_tip), radius=5, color=(0, 0, 255), thickness=-1)
+        cv2.circle(visualized_image, (int(x_tip), int(y_tip)), radius=5, color=(0, 0, 255), thickness=-1)
 
         # Check if the tip is inside the ROI
-        point_in_roi = cv2.pointPolygonTest(roi_polygon, (x_tip, y_tip), False)
+        point_in_roi = cv2.pointPolygonTest(roi_polygon, (int(x_tip), int(y_tip)), False)
         if point_in_roi >= 0:
             distances.append(0)
             visualization_data.append([frame_idx, "0"])
@@ -465,7 +465,7 @@ def calculate_distances_to_roi_and_visualize(tracked_tips, tip_id, roi_vertices,
             # Draw the dotted line between the tip and the closest point on the ROI
             if closest_point:
                 px, py = closest_point
-                draw_dotted_line(visualized_image, (x_tip, y_tip), (int(px), int(py)), color=(255, 255, 0))
+                draw_dotted_line(visualized_image, (int(x_tip), int(y_tip)), (int(px), int(py)), color=(255, 255, 0))
         
         # Save the visualization
         output_path = os.path.join(visualization_folder, f"tip_{tip_id}_frame_{frame_idx}.png")
@@ -1271,32 +1271,9 @@ def extract_frame_number(file_path):
 image_files.sort(key=extract_frame_number)
 
 
-
-fov_1x = (1000, 1000)  # Field of view at 1x magnification in micrometers (width, height)
-magnification = 10  # Magnification level
-time_per_frame = 2  # Time difference between consecutive frames in seconds
-frame_interval = 2  # Number of frames to calculate growth rates
-distance_threshold = 15  # Distance threshold for tip matching
-min_size_spores = 10  # Minimum size of spores
-max_size_spores = 200  # Maximum size of spores
-circularity_threshold = 0.7  # Circularity threshold for spores
-roi = (200, 300)  # Example region of interest (y, x)
-
 import os
 import cv2
-
-# ========== Define Input Parameters ==========
-# Define the folder containing the images
-folder_path = "/Users/noahweiler/Library/CloudStorage/OneDrive-ImperialCollegeLondon/Noah SWE Project/Processed_images"  # Update this path to your actual image folder
-image_files = [os.path.join(folder_path, file) for file in os.listdir(folder_path) if file.endswith('.tif')]
-
-# Sort image files based on frame numbers
-def extract_frame_number(file_path):
-    file_name = os.path.basename(file_path)
-    parts = file_name.split('_')
-    return int(parts[2])  # Assuming format "processed_frame_<number>_timestamp.tif"
-
-image_files.sort(key=extract_frame_number)
+import numpy as np
 
 # Define constants
 fov_1x = (1000, 1000)  # Field of view at 1x magnification in micrometers (width, height)
@@ -1307,11 +1284,18 @@ distance_threshold = 15  # Distance threshold for tip matching
 min_size_spores = 10  # Minimum size of spores
 max_size_spores = 200  # Maximum size of spores
 circularity_threshold = 0.7  # Circularity threshold for spores
-roi_polygon = [  # ROI coordinates
+roi_polygon = np.array([  # Convert ROI coordinates to NumPy array
     (1000, 1000), (4000, 1000), (4000, 4000), (1000, 4000)
-]
+], dtype=np.int32)
 
-# ========== Output Base Folders ==========
+# Ensure the input images are sorted by frame
+image_files = sorted(
+    [os.path.join("/Users/noahweiler/Library/CloudStorage/OneDrive-ImperialCollegeLondon/Noah SWE Project/Processed_images", f) 
+     for f in os.listdir("/Users/noahweiler/Library/CloudStorage/OneDrive-ImperialCollegeLondon/Noah SWE Project/Processed_images") 
+     if f.endswith(".tif")]
+)
+
+# Output base folders
 base_visualization_folder = "roi_visualizations"
 hyphal_endpoints_folder = "hyphal_endpoints"
 tip_visualization_folder = "tip_visualization_images"
@@ -1320,7 +1304,7 @@ os.makedirs(hyphal_endpoints_folder, exist_ok=True)
 os.makedirs(tip_visualization_folder, exist_ok=True)
 print(f"Output folders created or already exist: {base_visualization_folder}, {hyphal_endpoints_folder}, {tip_visualization_folder}")
 
-# ========== Process Image Sequence ==========
+# Process Image Sequence
 tip_positions_sequence = []
 biomass_values = []
 images = []  # Collect grayscale images for visualization
@@ -1328,6 +1312,8 @@ images = []  # Collect grayscale images for visualization
 for frame_idx, image_file in enumerate(image_files):
     # Load the image
     image = cv2.imread(image_file, cv2.IMREAD_GRAYSCALE)
+    if image is None:
+        raise FileNotFoundError(f"Image file not found: {image_file}")
     images.append(image)
 
     # Preprocess and skeletonize
@@ -1348,19 +1334,22 @@ for frame_idx, image_file in enumerate(image_files):
 
     print(f"Processed frame {frame_idx}")
 
-# ========== Track Tips Across Frames ==========
+# Track Tips Across Frames
 tracked_tips = track_tips_across_frames(tip_positions_sequence, distance_threshold)
 
-# ========== Visualize Distances to ROI ==========
+# Visualize and Calculate Distances to ROI
 iteration_folder = os.path.join(base_visualization_folder, f"iteration_{len(os.listdir(base_visualization_folder)) + 1}")
 os.makedirs(iteration_folder, exist_ok=True)
 print(f"Iteration folder created: {iteration_folder}")
 
-# Visualize and calculate distances to ROI
-tip_id = 1000  # Example tip ID
-calculate_distances_to_roi_and_visualize(tracked_tips, tip_id, roi_polygon, images, iteration_folder)
+# Ensure Tip ID exists in tracked_tips
+if 1000 in tracked_tips:
+    tip_id = 1000
+    calculate_distances_to_roi_and_visualize(tracked_tips, tip_id, roi_polygon, images, iteration_folder)
+else:
+    print("Tip ID 1000 not found in tracked tips. Skipping distance to ROI calculation.")
 
-# ========== Calculate Metrics ==========
+# Calculate Metrics
 # Average Growth Rates
 average_growth_rate_folder = os.path.join(base_visualization_folder, "average_growth_rates")
 os.makedirs(average_growth_rate_folder, exist_ok=True)
@@ -1401,5 +1390,5 @@ os.makedirs(biomass_folder, exist_ok=True)
 calculate_biomass_over_time(image_files, fov_1x, magnification, output_folder=biomass_folder)
 print("Biomass Over Time:", biomass_values)
 
-# ========== Processing Complete ==========
+# Processing Complete
 print("Processing complete. All results are saved as CSV files and visualizations in their respective folders.")
