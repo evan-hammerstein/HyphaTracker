@@ -267,7 +267,11 @@ def find_hyphal_endpoints(filtered_skeleton, frame_idx, output_folder="csv_files
 
 #DISTANCE TO REGIONS OF INTEREST
 # Example: Regions of interest (e.g., spore centroids)
+# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+# ADD VALUE FROM GUI HERE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 roi = [(100, 200), (150, 300)]  # Example coordinates
+# roi = [(int(sys.argv[]), int(sys.argv[])), (int(sys.argv[]), int(sys.argv[]))]
 import os
 import cv2
 import numpy as np
@@ -1005,7 +1009,6 @@ def track_tips_across_frames(tip_positions, distance_threshold=15, output_folder
 # ========== MAIN EXECUTION ==========
 
 # ========== Input Parameters ==========
-import os
 
 import os
 import shutil
