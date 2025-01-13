@@ -11,6 +11,8 @@ import math
 # Load the grayscale image
 image = cv2.imread('/Users/noahweiler/Library/CloudStorage/OneDrive-ImperialCollegeLondon/Noah SWE Project/HyphaTracker/Skeletonized_image.png', cv2.IMREAD_GRAYSCALE)
 
+
+
 # ========== IMAGE PROCESSING FUNCTIONS ==========
 
 # Preprocess Image
@@ -71,6 +73,15 @@ def filter_hyphae(binary_image, min_size=100):
 
 
 
+
+
+
+
+
+
+
+
+
 # ========== VISUALIZATION FUNCTIONS ==========
 
 # Display Image
@@ -100,7 +111,7 @@ def display_tips(binary_image, tips, frame_idx):
 
     # Overlay red dots and labels for tips
     for idx, (y, x) in enumerate(tips):
-        plt.scatter(x, y, c='red', s=0.5, label=f"Tip {idx+1}" if idx == 0 else None)  # Add red dot
+        plt.scatter(x, y, c='red', s=0.5, label=f"Tip {idx+1}" if idx == 0 else None)  # Adding red dot
 
     # Update title to include frame index if provided
     title = "Binary image with Tips"
@@ -142,6 +153,18 @@ def visualize_tracked_tips(tracked_tips, image_file, frame_idx):
 
 
 
+
+
+
+
+
+
+
+
+
+# =========== HYPHAL METRICS ===========================
+#=======================================================
+
 # ========== HYPHAL TIP DETECTION ==========
 
 # Detect endpoints
@@ -172,73 +195,114 @@ def find_hyphal_endpoints(filtered_skeleton):
 
 
 
-# ========== HYPHAL METRICS ==========
-
-def calculate_branching_rate(tip_positions, distance_threshold=15):
-    """
-    Calculate the branching rate/frequency of fungal hyphae over time.
-
-    :param tip_positions: List of lists of (y, x) tip positions for each frame.
-    :param distance_threshold: Maximum distance to consider tips as originating from the same source.
-    :return: List of branching events per frame and total branching events.
-    """
-    branching_events_per_frame = []  # List to store branching events for each frame
-    total_branching_events = 0  # Total number of branching events
-
-    # Iterate over consecutive frames
-    for frame_idx in range(1, len(tip_positions)):
-        current_tips = tip_positions[frame_idx]  # Tips in the current frame
-        previous_tips = tip_positions[frame_idx - 1]  # Tips in the previous frame
-
-        if not previous_tips or not current_tips:
-            branching_events_per_frame.append(0)
-            continue
-
-        # Calculate distances between previous and current tips
-        distances = cdist(previous_tips, current_tips)
-
-        # For each tip in the previous frame, count the number of associated tips in the current frame
-        branching_events = 0
-        for i, _ in enumerate(previous_tips):
-            # Find indices of current tips within the distance threshold
-            matching_tips = np.where(distances[i] < distance_threshold)[0]
-            
-            # If there are more than one matching tip, it indicates branching
-            if len(matching_tips) > 1:
-                branching_events += len(matching_tips) - 1  # Count new branches
-
-        # Update the branching events
-        branching_events_per_frame.append(branching_events)
-        total_branching_events += branching_events
-
-    return branching_events_per_frame, total_branching_events
-
-
-
-
 #DISTANCE TO REGIONS OF INTEREST
 # Example: Regions of interest (e.g., spore centroids)
 roi = [(100, 200), (150, 300)]  # Example coordinates
 
-def calculate_distances_to_roi(tracked_tips, tip_id, roi):
+import os
+import cv2
+import numpy as np
+
+def calculate_distances_to_roi_and_visualize(tracked_tips, tip_id, roi_polygon, images, base_folder):
     """
-    Calculate the distances of a specific hyphal tip to a defined region of interest (ROI) over time.
+    Calculate the distances of a specific hyphal tip to a defined region of interest (ROI) and create visualizations.
     
     :param tracked_tips: Dictionary with tip IDs as keys and lists of positions [(frame, y, x)] as values.
     :param tip_id: The ID of the tip for which distances should be calculated.
-    :param roi: Tuple (y, x) defining the region of interest.
-    :return: List of distances to the ROI for the specified tip over time.
+    :param roi_polygon: List of (x, y) points defining the region of interest (ROI) as a polygon.
+    :param images: List of images corresponding to each frame.
+    :param base_folder: Base folder path to store visualizations.
+    :return: List of distances to the ROI for the specified tip over all frames.
     """
-    if tip_id not in tracked_tips:
-        raise ValueError(f"Tip ID {tip_id} not found in tracked tips.")
+    # Ensure the base folder exists
+    if not os.path.exists(base_folder):
+        os.makedirs(base_folder)
+        print(f"Base folder created: {base_folder}")
+    
+    # Create a new folder for this iteration
+    iteration_number = len([f for f in os.listdir(base_folder) if os.path.isdir(os.path.join(base_folder, f))]) + 1
+    iteration_folder = os.path.join(base_folder, f"iteration_{iteration_number}")
+    os.makedirs(iteration_folder)
+    print(f"Iteration folder created: {iteration_folder}")
     
     distances = []
-    for _, y, x in tracked_tips[tip_id]:
-        # Calculate the Euclidean distance to the ROI
-        distance = np.sqrt((y - roi[0])**2 + (x - roi[1])**2)
-        distances.append(distance)
+    
+    for frame_idx, (frame, y_tip, x_tip) in enumerate(tracked_tips[tip_id]):
+        # Get the corresponding image for the current frame
+        if frame_idx >= len(images):
+            break  # Ensure we do not exceed the number of frames
+        image = images[frame_idx]
+        
+        # Convert the image to RGB for visualization
+        visualized_image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+        
+        # Highlight the ROI in yellow
+        roi_polygon_np = np.array(roi_polygon, dtype=np.int32)
+        cv2.polylines(visualized_image, [roi_polygon_np], isClosed=True, color=(0, 255, 255), thickness=2)
+        
+        # Highlight the tip in red
+        cv2.circle(visualized_image, (x_tip, y_tip), radius=50, color=(0, 0, 255), thickness=1)
+        
+        # Calculate the shortest distance from the tip to the ROI
+        shortest_distance = float('inf')
+        closest_point = None
+        for i in range(len(roi_polygon)):
+            # Get consecutive points in the polygon
+            x1, y1 = roi_polygon[i]
+            x2, y2 = roi_polygon[(i + 1) % len(roi_polygon)]  # Wrap around to the first point
+            
+            # Compute the closest point on the line segment to the tip
+            px, py = closest_point_on_line_segment(x1, y1, x2, y2, x_tip, y_tip)
+            distance = np.sqrt((px - x_tip) ** 2 + (py - y_tip) ** 2)
+            if distance < shortest_distance:
+                shortest_distance = distance
+                closest_point = (px, py)
+        
+        distances.append(shortest_distance)
+        
+        # Draw the dotted line between the tip and the closest point on the ROI
+        if closest_point:
+            px, py = closest_point
+            draw_dotted_line(visualized_image, (x_tip, y_tip), (int(px), int(py)), color=(255, 255, 255))
+        
+        # Save the visualization in the iteration folder
+        output_path = os.path.join(iteration_folder, f"tip_{tip_id}_frame_{frame_idx}.png")
+        cv2.imwrite(output_path, visualized_image)
     
     return distances
+
+def closest_point_on_line_segment(x1, y1, x2, y2, x, y):
+    """
+    Calculate the closest point on a line segment to a given point.
+    """
+    dx, dy = x2 - x1, y2 - y1
+    if dx == dy == 0:
+        return x1, y1  # The segment is a single point
+    
+    t = ((x - x1) * dx + (y - y1) * dy) / (dx * dx + dy * dy)
+    t = max(0, min(1, t))  # Clamp t to the range [0, 1]
+    return x1 + t * dx, y1 + t * dy
+
+def draw_dotted_line(image, start, end, color, thickness=1, gap=5):
+    """
+    Draw a dotted line on an image between two points.
+    """
+    x1, y1 = start
+    x2, y2 = end
+    length = int(np.hypot(x2 - x1, y2 - y1))
+    for i in range(0, length, gap * 2):
+        start_x = int(x1 + i / length * (x2 - x1))
+        start_y = int(y1 + i / length * (x2 - y1))
+        end_x = int(x1 + min(i + gap, length) / length * (x2 - x1))
+        end_y = int(y1 + min(i + gap, length) / length * (y2 - y1))
+        cv2.line(image, (start_x, start_y), (end_x, end_y), color, thickness)
+
+
+# ========== HYPHAL METRICS ==========
+
+
+
+
 
 
 
@@ -323,6 +387,152 @@ def calculate_growth_angles(tracked_tips, tip_id):
     return growth_angles
 
 
+
+def calculate_tip_size(binary_image, tip_position, radius_microns = 10):
+    """
+    Calculate the size of a single tip by counting the filled pixels within a specified radius.
+    
+    :param binary_image: Binary image as a NumPy array (1 for foreground, 0 for background).
+    :param tip_position: Tuple (y, x) representing the position of the tip.
+    :param radius_microns: Radius around the tip in microns.
+    :param pixel_area: Area of a single pixel in µm².
+    :return: Tip size in µm².
+    """
+    # Image dimensions
+    image_height, image_width = binary_image.shape
+
+    # Calculate the FOV at the given magnification
+    fov_width = fov_1x[0] / magnification  # µm
+    fov_height = fov_1x[1] / magnification  # µm
+
+    # Calculate pixel dimensions
+    pixel_width = fov_width / image_width  # µm per pixel
+    pixel_height = fov_height / image_height  # µm per pixel
+
+    # Calculate pixel area in micrometers squared
+    pixel_area = pixel_width * pixel_height  # µm² per pixel
+
+    y, x = tip_position
+    radius_pixels = int(np.sqrt(radius_microns**2 / pixel_area))                # Convert radius from microns to pixels
+
+    mask = np.zeros_like(binary_image, dtype=bool)                              # Create a circular mask for the ROI
+    y_grid, x_grid = np.ogrid[:binary_image.shape[0], :binary_image.shape[1]]
+    distance_from_tip = np.sqrt((y_grid - y)**2 + (x_grid - x)**2)
+    mask[distance_from_tip <= radius_pixels] = True
+
+    # Count filled pixels within the circular mask
+    tip_pixels = np.sum(binary_image[mask])
+
+    # Convert the count of pixels to area in microns squared
+    tip_size = tip_pixels * pixel_area
+    return tip_size
+
+import csv
+
+def track_tip_size_over_time(tracked_tips, binary_images, tip_id, radius_microns = 10):
+    """
+    Track the size of a specific tip over time across multiple frames.
+    
+    :param tracked_tips: Dictionary with tip IDs as keys and lists of positions [(frame, y, x)] as values.
+    :param binary_images: List of binary images (one per frame).
+    :param tip_id: The ID of the tip to track.
+    :param radius_microns: Radius around the tip in microns.
+    :param pixel_area: Area of a single pixel in µm².
+    :return: List of tip sizes (in µm²) over time.
+    """
+    if tip_id not in tracked_tips:
+        raise ValueError(f"Tip ID {tip_id} not found in tracked tips.")
+    
+    tip_sizes = []  # To store the size of the tip in each frame
+    tip_positions = tracked_tips[tip_id]  # Get the positions of the specified tip
+    
+    for frame_idx, (frame, y, x) in enumerate(tip_positions):
+        # Get the binary image for the current frame
+        binary_image = binary_images[frame]
+        
+        # Calculate the size of the tip in the current frame
+        tip_size = calculate_tip_size(binary_image, (y, x), radius_microns)
+        tip_sizes.append(tip_size)
+    
+    # Save the results to a CSV file
+    with open("tip_sizes.csv", mode="w", newline="") as csvfile:
+        csv_writer = csv.writer(csvfile)
+        csv_writer.writerow(["Frame", "Tip Size (µm²)"])  # Header row
+        csv_writer.writerows(tip_sizes)  # Write data rows
+    
+    print(f"Tip sizes saved to tip_sizes.csv")
+    
+    return tip_sizes
+
+
+def calculate_overall_average_tip_size(tracked_tips, binary_images, radius_microns=10):
+    """
+    Calculate the overall average size of all tips across all frames.
+    
+    :param tracked_tips: Dictionary with tip IDs as keys and lists of positions [(frame, y, x)] as values.
+    :param binary_images: List of binary images (one per frame).
+    :param radius_microns: Radius around the tip in microns for size calculation.
+    :return: The overall average tip size (µm²).
+    """
+    total_size = 0
+    total_count = 0
+
+    for tip_id, positions in tracked_tips.items():
+        for frame, y, x in positions:
+            # Get the binary image for the current frame
+            binary_image = binary_images[frame]
+
+            # Calculate the size of the tip in the current frame
+            tip_size = calculate_tip_size(binary_image, (y, x), radius_microns)
+            total_size += tip_size
+            total_count += 1
+
+    # Calculate overall average size
+    overall_average_size = total_size / total_count if total_count > 0 else 0
+    return overall_average_size
+
+
+
+
+#============ BRANCHING FREQUENCY ===============
+def calculate_branching_rate(tip_positions, distance_threshold=15):
+    """
+    Calculate the branching rate/frequency of fungal hyphae over time.
+
+    :param tip_positions: List of lists of (y, x) tip positions for each frame.
+    :param distance_threshold: Maximum distance to consider tips as originating from the same source.
+    :return: List of branching events per frame and total branching events.
+    """
+    branching_events_per_frame = []  # List to store branching events for each frame
+    total_branching_events = 0  # Total number of branching events
+
+    # Iterate over consecutive frames
+    for frame_idx in range(1, len(tip_positions)):
+        current_tips = tip_positions[frame_idx]  # Tips in the current frame
+        previous_tips = tip_positions[frame_idx - 1]  # Tips in the previous frame
+
+        if not previous_tips or not current_tips:
+            branching_events_per_frame.append(0)
+            continue
+
+        # Calculate distances between previous and current tips
+        distances = cdist(previous_tips, current_tips)
+
+        # For each tip in the previous frame, count the number of associated tips in the current frame
+        branching_events = 0
+        for i, _ in enumerate(previous_tips):
+            # Find indices of current tips within the distance threshold
+            matching_tips = np.where(distances[i] < distance_threshold)[0]
+            
+            # If there are more than one matching tip, it indicates branching
+            if len(matching_tips) > 1:
+                branching_events += len(matching_tips) - 1  # Count new branches
+
+        # Update the branching events
+        branching_events_per_frame.append(branching_events)
+        total_branching_events += branching_events
+
+    return branching_events_per_frame, total_branching_events
 
 
 # ========== MYCELIAL METRICS ==========
@@ -620,22 +830,37 @@ max_size_spores = 200  # Maximum size of spores
 circularity_threshold = 0.7  # Circularity threshold for spores
 roi = (200, 300)  # Example region of interest (y, x)
 
-#========== Process Image Sequence ==========
+import os
+import csv
+import cv2
 
-#Preprocess images and extract hyphal tips
+# Define ROI polygon coordinates
+roi_polygon = [
+    (1625, 1032), (1827, 3045), (1897, 5848), 
+    (2614, 6323), (9328, 5879), (9875, 5354),
+    (9652, 2133), (9592, 376), (1988, 780)
+]
+
+# Output base folder for visualizations
+base_visualization_folder = "roi_visualizations"
+if not os.path.exists(base_visualization_folder):
+    os.makedirs(base_visualization_folder)
+    print(f"Base folder created: {base_visualization_folder}")
+
+# ========== Process Image Sequence ==========
 tip_positions_sequence = []
 biomass_values = []
+images = []  # Collect grayscale images for visualization
 print(image_files[0])
 
 for frame_idx, image_file in enumerate(image_files):
-#     # Load the image
+    # Load the image
     image = cv2.imread(image_file, cv2.IMREAD_GRAYSCALE)
+    images.append(image)  # Add the grayscale image to the list
 
     # Preprocess and visualize
     binary_image = preprocess_image(image)
-
     skeleton = skeletonize_image(binary_image)
-
     filtered_skeleton = filter_hyphae(skeleton, min_size=500)
 
     # Find hyphal endpoints
@@ -646,72 +871,64 @@ for frame_idx, image_file in enumerate(image_files):
     biomass = find_biomass(binary_image, fov_1x, magnification)
     biomass_values.append(biomass)
 
-    print(f'Execution for frame{frame_idx}')
-    #Track hyphal tips across frames
+    print(f'Execution for frame {frame_idx}')
+    # Track hyphal tips across frames
     tracked_tips = track_tips_across_frames(tip_positions_sequence, distance_threshold)
 
-    #display_tips(binary_image, endpoints, frame_idx)
+# ========== Visualize Distances to ROI ==========
+# Create a new subfolder for the current iteration
+iteration_folder = os.path.join(base_visualization_folder, f"iteration_{len(os.listdir(base_visualization_folder)) + 1}")
+os.makedirs(iteration_folder)
+print(f"Iteration folder created: {iteration_folder}")
 
-    # Visualize tracked tips
-    visualize_tracked_tips(tracked_tips, image_file, frame_idx)
-
-
+# Visualize distances to ROI and calculate distances
+tip_id = 1000  # Example tip ID
+distances_to_roi = calculate_distances_to_roi_and_visualize(
+    tracked_tips, tip_id, roi_polygon, images, iteration_folder
+)
+distances_to_roi = [f"{distance:.3g} µm" for distance in distances_to_roi]
+print(f"Distances of Tip {tip_id} to ROI:", distances_to_roi)
 
 # ========== Calculate Metrics ==========
 # Calculate average growth rates for each tip
 average_growth_rates, general_average_growth_rate = calculate_average_growth_rate(
     tracked_tips, frame_interval, time_per_frame
 )
-# Format the growth rates to 3 decimal places and add units (e.g., µm/s)
-average_growth_rates = {tip_id: f"{rate:.3f} µm/s" for tip_id, rate in average_growth_rates.items()}
-general_average_growth_rate = f"{float(general_average_growth_rate):.3f} µm/s"
+average_growth_rates = {tip_id: f"{rate:.3g} µm/s" for tip_id, rate in average_growth_rates.items()}
+general_average_growth_rate = f"{general_average_growth_rate:.3g} µm/s"
 print("Average Growth Rates for Each Tip:", average_growth_rates)
 print("General Average Growth Rate:", general_average_growth_rate)
 
-# Calculate distances to ROI for a specific tip
-tip_id = 0  # Example tip ID
-distances_to_roi = calculate_distances_to_roi(tracked_tips, tip_id, roi)
-# Format the distances to 3 decimal places and add units (e.g., µm)
-distances_to_roi = [f"{distance:.3f} µm" for distance in distances_to_roi]
-print(f"Distances of Tip {tip_id} to ROI:", distances_to_roi)
-
 # Calculate growth angles for a specific tip
 growth_angles = calculate_growth_angles(tracked_tips, tip_id)
-# Format the growth angles to 3 decimal places and add units (e.g., degrees)
-growth_angles = [f"{angle:.3f}°" for angle in growth_angles]
+growth_angles = [f"{angle:.3g}°" for angle in growth_angles]
 print(f"Growth Angles for Tip {tip_id}:", growth_angles)
 
 # Calculate branching rate
 branching_events_per_frame, total_branching_events = calculate_branching_rate(
     tip_positions_sequence, distance_threshold
 )
-# Format branching events per frame (unitless as they are counts)
-branching_events_per_frame = [f"{event:.3f}" for event in branching_events_per_frame]
-total_branching_events = f"{float(total_branching_events):.3f}"
+branching_events_per_frame = [f"{event:.3g}" for event in branching_events_per_frame]
+total_branching_events = f"{total_branching_events:.3g}"
 print("Branching Events Per Frame:", branching_events_per_frame)
 print("Total Branching Events:", total_branching_events)
 
-# ========== Track Spores ==========
+# Track spores and format sizes
 spore_tracking = track_spores_over_time(
-     image_files, min_size=min_size_spores, max_size=max_size_spores,
-     circularity_threshold=circularity_threshold, distance_threshold=distance_threshold
+    image_files, min_size=min_size_spores, max_size=max_size_spores,
+    circularity_threshold=circularity_threshold, distance_threshold=distance_threshold
 )
-# Format spore sizes to 3 decimal places and add units (e.g., µm² for area)
 formatted_spore_tracking = {
-    spore_id: [f"{size:.3f} µm²" for size in sizes]
+    spore_id: [f"{size:.3g} µm²" for size in sizes]
     for spore_id, sizes in spore_tracking.items()
 }
 print("Spore Size Histories Over Time:", formatted_spore_tracking)
 
-# ========== Biomass Analysis ==========
-# Format biomass values to 3 decimal places and add units (e.g., µm² for area)
-biomass_values = [f"{biomass:.3f} µm²" for biomass in biomass_values]
+# Biomass analysis
+biomass_values = [f"{biomass:.3g} µm²" for biomass in biomass_values]
 print("Biomass Over Time:", biomass_values)
 
-
-import csv
-
-# Prepare the data for CSV
+# ========== Prepare CSV Data ==========
 csv_data = []
 
 # Average growth rates
@@ -720,7 +937,7 @@ for tip_id, rate in average_growth_rates.items():
     csv_data.append([tip_id, rate])
 
 # General average growth rate
-csv_data.append([])  # Add an empty row for spacing
+csv_data.append([])
 csv_data.append(["General Average Growth Rate", general_average_growth_rate])
 
 # Distances to ROI
