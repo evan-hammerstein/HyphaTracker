@@ -805,6 +805,10 @@ def track_spores_over_time(image_files, min_size=10, max_size=200, circularity_t
     :return: Dictionary of tracked spores with their sizes over time.
     """
 
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+        print(f"Output folder created: {output_folder}")
+
     # Dictionary to store tracked spores: {spore_id: {"history": [(frame_idx, size)], "last_position": (x, y)}}
     tracked_spores = {}
     next_spore_id = 0
@@ -856,7 +860,6 @@ def track_spores_over_time(image_files, min_size=10, max_size=200, circularity_t
                     next_spore_id += 1
     
     # Ensure the output folder exists
-    os.makedirs(output_folder, exist_ok=True)
     output_file = os.path.join(output_folder, "tracked_spores.csv")
     
     # Save spore size and position histories to a CSV file
@@ -876,15 +879,6 @@ def track_spores_over_time(image_files, min_size=10, max_size=200, circularity_t
     # Extract the size history for each spore
     spore_size_histories = {spore_id: [entry[1] for entry in data["history"]] for spore_id, data in tracked_spores.items()}
     return spore_size_histories
-
-
-
-
-
-
-
-
-
 
 
 
