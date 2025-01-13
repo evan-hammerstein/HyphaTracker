@@ -167,7 +167,7 @@ def find_hyphal_endpoints(filtered_skeleton):
 
 def calculate_branching_rate(tip_positions, distance_threshold=15):
     """
-    Calculate the branching rate/frequency of fungal hyphae over time.
+    Calculate the branching rate/frequency of fungal hyphae over time and save results to a CSV file.
 
     :param tip_positions: List of lists of (y, x) tip positions for each frame.
     :param distance_threshold: Maximum distance to consider tips as originating from the same source.
@@ -202,6 +202,18 @@ def calculate_branching_rate(tip_positions, distance_threshold=15):
         branching_events_per_frame.append(branching_events)
         total_branching_events += branching_events
 
+    # Save branching rates to a CSV file
+    output_filename = "branching_rates.csv"
+    with open(output_filename, mode="w", newline="") as csvfile:
+        csv_writer = csv.writer(csvfile)
+        # Write header row
+        csv_writer.writerow(["Frame", "Branching Events"])
+        # Write data rows
+        for frame_idx, branching_events in enumerate(branching_events_per_frame, start=1):
+            csv_writer.writerow([frame_idx, branching_events])
+
+    print(f"Branching rates per frame saved to {output_filename}")
+
     return branching_events_per_frame, total_branching_events
 
 
@@ -211,33 +223,39 @@ def calculate_branching_rate(tip_positions, distance_threshold=15):
 # Example: Regions of interest (e.g., spore centroids)
 roi = [(100, 200), (150, 300)]  # Example coordinates
 
-def calculate_distances_to_roi(tracked_tips, tip_id, roi):
+def calculate_distances_to_roi_all_tips(tracked_tips, roi):
     """
-    Calculate the distances of a specific hyphal tip to a defined region of interest (ROI) over time.
+    Calculate the distances of all hyphal tips to a defined region of interest (ROI) over time.
     
     :param tracked_tips: Dictionary with tip IDs as keys and lists of positions [(frame, y, x)] as values.
-    :param tip_id: The ID of the tip for which distances should be calculated.
     :param roi: Tuple (y, x) defining the region of interest.
-    :return: List of distances to the ROI for the specified tip over time.
+    :return: Dictionary with tip IDs as keys and lists of tuples [(frame, distance)] as values.
     """
-    if tip_id not in tracked_tips:
-        raise ValueError(f"Tip ID {tip_id} not found in tracked tips.")
-    
-    distances = []
-    for frame, y, x in tracked_tips[tip_id]:
-        # Calculate the Euclidean distance to the ROI
-        distance = np.sqrt((y - roi[0])**2 + (x - roi[1])**2)
-        distances.append((frame, distance))  # Include the frame number
-    
+    all_distances = {}  # Store distances for all tips
+
+    for tip_id, positions in tracked_tips.items():
+        distances = []  # Store distances for the current tip
+        for frame, y, x in positions:
+            # Calculate the Euclidean distance to the ROI
+            distance = np.sqrt((y - roi[0])**2 + (x - roi[1])**2)
+            distances.append((frame, distance))  # Include the frame number
+        all_distances[tip_id] = distances  # Store distances for this tip
+
     # Save the results to a CSV file
-    with open("distances_to_roi.csv", mode="w", newline="") as csvfile:
+    output_filename = "distances_to_roi_all_tips.csv"
+    with open(output_filename, mode="w", newline="") as csvfile:
         csv_writer = csv.writer(csvfile)
-        csv_writer.writerow(["Frame", "Distance to ROI"])  # Header row
-        csv_writer.writerows(distances)  # Write frame and distance rows
+        # Write header row
+        csv_writer.writerow(["Tip ID", "Frame", "Distance to ROI"])
+        # Write data rows for all tips
+        for tip_id, distances in all_distances.items():
+            for frame, distance in distances:
+                csv_writer.writerow([tip_id, frame, distance])
 
-    print(f"Distances to ROI saved to distances_to_roi.csv")
+    print(f"Distances of all tips to ROI saved to {output_filename}")
 
-    return distances
+    return all_distances
+
 
 
 
