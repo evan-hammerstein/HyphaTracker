@@ -373,7 +373,7 @@ def calculate_average_growth_rate(tracked_tips, frame_interval, time_per_frame, 
     
     :param tracked_tips: Dictionary with tip IDs as keys and lists of positions [(frame, y, x)] as values.
     :param frame_interval: Number of frames over which to calculate the growth rate.
-    :param time_per_frame: Time difference between consecutive frames.
+    :param time_per_frame: Time difference between consecutive frames in hours.
     :param output_folder: Folder to store the output CSV file.
     :return: Dictionary with tip IDs as keys and average growth rates as values, 
              and the general average growth rate for all tips.
@@ -430,7 +430,7 @@ def calculate_average_growth_rate(tracked_tips, frame_interval, time_per_frame, 
     plt.figure(figsize=(10, 6))
     plt.bar(average_growth_rates.keys(), average_growth_rates.values(), color='blue')
     plt.xlabel("Tip ID")
-    plt.ylabel("Average Growth Rate (µm/s)")
+    plt.ylabel("Average Growth Rate (µm/hr)")
     plt.title("Average Growth Rate of Hyphal Tips")
     plt.xticks(rotation=45)
     plt.tight_layout()
@@ -1102,7 +1102,7 @@ elif magnification == 40:
 elif magnification == 100:
     pixel_area = 0.07**2
 
-time_per_frame = 2  # Time difference between consecutive frames in seconds
+time_per_frame = 2  # Time difference between consecutive frames in hours
 frame_interval = 2  # Frame interval for growth rate calculations
 distance_threshold = 15  # Distance threshold for tip tracking
 min_size_spores = 10  # Minimum size for spores
