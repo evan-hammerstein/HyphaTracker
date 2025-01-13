@@ -285,22 +285,19 @@ def calculate_distances_to_roi_and_visualize(tracked_tips, tip_id, roi_vertices,
         raise ValueError("ROI must be defined by exactly 4 vertices.")
 
     # Ensure the base output folder exists
-    if not os.path.exists(output_folder):
-        os.makedirs(output_folder)
+    os.makedirs(output_folder, exist_ok=True)
 
     # Create folders for visualizations and CSV
     visualization_folder = os.path.join(output_folder, "visualizations")
     csv_folder = output_folder
-    if not os.path.exists(visualization_folder):
-        os.makedirs(visualization_folder)
-    if not os.path.exists(csv_folder):
-        os.makedirs(csv_folder)
+    os.makedirs(visualization_folder, exist_ok=True)
+    os.makedirs(csv_folder, exist_ok=True)
 
     distances = []
     visualization_data = [["Frame", "Shortest Distance to ROI (µm)"]]
 
-    # Create the polygon from the vertices
-    roi_polygon = np.array(roi_vertices, dtype=np.int32)
+    # Create the polygon mask for the ROI
+    roi_polygon = np.array([roi_vertices], dtype=np.int32)
 
     for frame_idx, (frame, y_tip, x_tip) in enumerate(tracked_tips[tip_id]):
         if frame_idx >= len(images):
@@ -317,29 +314,36 @@ def calculate_distances_to_roi_and_visualize(tracked_tips, tip_id, roi_vertices,
         
         # Highlight the tip in red
         cv2.circle(visualized_image, (x_tip, y_tip), radius=5, color=(0, 0, 255), thickness=-1)
-        
-        # Calculate the shortest distance from the tip to the ROI
-        shortest_distance = float('inf')
-        closest_point = None
-        for i in range(len(roi_vertices)):
-            # Get consecutive points in the polygon
-            x1, y1 = roi_vertices[i]
-            x2, y2 = roi_vertices[(i + 1) % len(roi_vertices)]  # Wrap around to the first point
-            
-            # Compute the closest point on the line segment to the tip
-            px, py = closest_point_on_line_segment(x1, y1, x2, y2, x_tip, y_tip)
-            distance = np.sqrt((px - x_tip) ** 2 + (py - y_tip) ** 2)
-            if distance < shortest_distance:
-                shortest_distance = distance
-                closest_point = (px, py)
-        
-        distances.append(shortest_distance)
-        visualization_data.append([frame_idx, f"{shortest_distance:.3f}"])
 
-        # Draw the dotted line between the tip and the closest point on the ROI
-        if closest_point:
-            px, py = closest_point
-            draw_dotted_line(visualized_image, (x_tip, y_tip), (int(px), int(py)), color=(255, 255, 255))
+        # Check if the tip is inside the ROI
+        point_in_roi = cv2.pointPolygonTest(roi_polygon, (x_tip, y_tip), False)
+        if point_in_roi >= 0:
+            distances.append(0)
+            visualization_data.append([frame_idx, "0"])
+            print(f"Tip at frame {frame_idx} is in the region of interest.")
+        else:
+            # Calculate the shortest distance from the tip to the ROI
+            shortest_distance = float('inf')
+            closest_point = None
+            for i in range(len(roi_vertices)):
+                # Get consecutive points in the polygon
+                x1, y1 = roi_vertices[i]
+                x2, y2 = roi_vertices[(i + 1) % len(roi_vertices)]  # Wrap around to the first point
+                
+                # Compute the closest point on the line segment to the tip
+                px, py = closest_point_on_line_segment(x1, y1, x2, y2, x_tip, y_tip)
+                distance = np.sqrt((px - x_tip) ** 2 + (py - y_tip) ** 2)
+                if distance < shortest_distance:
+                    shortest_distance = distance
+                    closest_point = (px, py)
+            
+            distances.append(shortest_distance)
+            visualization_data.append([frame_idx, f"{shortest_distance:.3f}"])
+
+            # Draw the dotted line between the tip and the closest point on the ROI
+            if closest_point:
+                px, py = closest_point
+                draw_dotted_line(visualized_image, (x_tip, y_tip), (int(px), int(py)), color=(255, 255, 255))
         
         # Save the visualization
         output_path = os.path.join(visualization_folder, f"tip_{tip_id}_frame_{frame_idx}.png")
@@ -1044,7 +1048,7 @@ for frame_idx, image_file in enumerate(image_files):
     tip_positions_sequence.append(endpoints)
 
     # Save the tip visualizations
-    display_tips(filtered_skeleton, endpoints, frame_idx, output_folder=tip_visualization_folder)
+    display_tips(binary_image, endpoints, frame_idx, output_folder=tip_visualization_folder)
 
     # Calculate biomass
     biomass = find_biomass(binary_image, fov_1x, magnification)
