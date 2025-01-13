@@ -734,7 +734,7 @@ import cv2
 import numpy as np
 
 # Define the folder containing the images
-folder_path = 'C:/Users/ls2221/OneDrive - Imperial College London/Year 3/Software Engineering/Project/Proc_Ims'
+folder_path = '/Users/lindaschermeier/OneDrive - Imperial College London/Year 3/Software Engineering/Project/Proc_Ims'
 
 if not os.path.exists(folder_path):
     raise FileNotFoundError(f"Folder does not exist: {folder_path}")
