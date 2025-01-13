@@ -142,6 +142,7 @@ def find_hyphal_endpoints(filtered_skeleton):
     :param skeleton: Skeletonized binary image.
     :return: List of (y, x) coordinates of detected endpoints.
     """
+
     # Define a 3x3 kernel to identify pixels with exactly one neighbor
     kernel = np.array([[1, 1, 1], 
                        [1, 10, 1], 
@@ -159,6 +160,7 @@ def find_hyphal_endpoints(filtered_skeleton):
     for y, x in endpoints:
         if labeled_skeleton[y, x] > 0:  # Check if endpoint belongs to a labeled component
             valid_endpoints.append((y, x))  # Add valid endpoint to the list
+    
     return valid_endpoints
 
 
@@ -224,12 +226,21 @@ def calculate_distances_to_roi(tracked_tips, tip_id, roi):
         raise ValueError(f"Tip ID {tip_id} not found in tracked tips.")
     
     distances = []
-    for _, y, x in tracked_tips[tip_id]:
+    for frame, y, x in tracked_tips[tip_id]:
         # Calculate the Euclidean distance to the ROI
         distance = np.sqrt((y - roi[0])**2 + (x - roi[1])**2)
-        distances.append(distance)
+        distances.append((frame, distance))  # Include the frame number
     
+    # Save the results to a CSV file
+    with open("distances_to_roi.csv", mode="w", newline="") as csvfile:
+        csv_writer = csv.writer(csvfile)
+        csv_writer.writerow(["Frame", "Distance to ROI"])  # Header row
+        csv_writer.writerows(distances)  # Write frame and distance rows
+
+    print(f"Distances to ROI saved to distances_to_roi.csv")
+
     return distances
+
 
 
 
@@ -283,35 +294,50 @@ def calculate_average_growth_rate(tracked_tips, frame_interval, time_per_frame):
 
 #TIP GROWTH ANGLE
 
-def calculate_growth_angles(tracked_tips, tip_id):
+def calculate_growth_angles_for_all_tips(tracked_tips):
     """
-    Calculate the growth angles of a specific hyphal tip over time.
+    Calculate the growth angles for all tracked tips over time and save them to a CSV file.
     
     :param tracked_tips: Dictionary with tip IDs as keys and lists of positions [(frame, y, x)] as values.
-    :param tip_id: The ID of the tip for which growth angles should be calculated.
-    :return: List of growth angles (in degrees) for the specified tip over time.
+    :return: Dictionary with tip IDs as keys and lists of (frame, angle) tuples.
     """
-    if tip_id not in tracked_tips:
-        raise ValueError(f"Tip ID {tip_id} not found in tracked tips.")
-    
-    positions = tracked_tips[tip_id]  # Get the positions of the specified tip
-    growth_angles = []  # List to store growth angles
-    
-    for i in range(1, len(positions)):
-        _, y1, x1 = positions[i - 1]
-        _, y2, x2 = positions[i]
+    all_growth_angles = {}  # Store growth angles for each tip
+
+    for tip_id, positions in tracked_tips.items():
+        growth_angles = []  # Store growth angles for the current tip
+        for i in range(1, len(positions)):
+            frame, y1, x1 = positions[i - 1]
+            _, y2, x2 = positions[i]
+            
+            # Compute differences
+            delta_x = x2 - x1
+            delta_y = y2 - y1
+            
+            # Calculate angle in radians and convert to degrees
+            angle_radians = math.atan2(delta_y, delta_x)
+            angle_degrees = math.degrees(angle_radians)
+            
+            growth_angles.append((frame, angle_degrees))  # Append frame and angle
         
-        # Compute differences
-        delta_x = x2 - x1
-        delta_y = y2 - y1
+        all_growth_angles[tip_id] = growth_angles  # Store results for this tip
+
+    # Save the results to a CSV file
+    with open("growth_angles.csv", mode="w", newline="") as csvfile:
+        csv_writer = csv.writer(csvfile)
         
-        # Calculate angle in radians and convert to degrees
-        angle_radians = math.atan2(delta_y, delta_x)
-        angle_degrees = math.degrees(angle_radians)
+        # Write header row
+        header = ["Tip ID", "Frame", "Growth Angle (degrees)"]
+        csv_writer.writerow(header)
         
-        growth_angles.append(angle_degrees)
+        # Write data for all tips
+        for tip_id, angles in all_growth_angles.items():
+            for frame, angle in angles:
+                csv_writer.writerow([tip_id, frame, angle])
     
-    return growth_angles
+    print(f"Growth angles for all tips saved to growth_angles.csv")
+
+    return all_growth_angles
+
 
 def calculate_tip_size(binary_image, tip_position, radius_microns = 10):
     """
@@ -352,9 +378,7 @@ def calculate_tip_size(binary_image, tip_position, radius_microns = 10):
     tip_size = tip_pixels * pixel_area
     return tip_size
 
-import csv
-
-def track_tip_size_over_time(tracked_tips, binary_images, tip_id, radius_microns = 10):
+def track_tip_size_over_time(tracked_tips, binary_images, tip_id, radius_microns=10):
     """
     Track the size of a specific tip over time across multiple frames.
     
@@ -362,8 +386,7 @@ def track_tip_size_over_time(tracked_tips, binary_images, tip_id, radius_microns
     :param binary_images: List of binary images (one per frame).
     :param tip_id: The ID of the tip to track.
     :param radius_microns: Radius around the tip in microns.
-    :param pixel_area: Area of a single pixel in µm².
-    :return: List of tip sizes (in µm²) over time.
+    :return: List of tuples (frame, tip size in µm²) over time.
     """
     if tip_id not in tracked_tips:
         raise ValueError(f"Tip ID {tip_id} not found in tracked tips.")
@@ -371,23 +394,24 @@ def track_tip_size_over_time(tracked_tips, binary_images, tip_id, radius_microns
     tip_sizes = []  # To store the size of the tip in each frame
     tip_positions = tracked_tips[tip_id]  # Get the positions of the specified tip
     
-    for frame_idx, (frame, y, x) in enumerate(tip_positions):
+    for frame, y, x in tip_positions:
         # Get the binary image for the current frame
         binary_image = binary_images[frame]
         
         # Calculate the size of the tip in the current frame
         tip_size = calculate_tip_size(binary_image, (y, x), radius_microns)
-        tip_sizes.append(tip_size)
+        tip_sizes.append((frame, tip_size))  # Store frame and size as a tuple
     
     # Save the results to a CSV file
     with open("tip_sizes.csv", mode="w", newline="") as csvfile:
         csv_writer = csv.writer(csvfile)
         csv_writer.writerow(["Frame", "Tip Size (µm²)"])  # Header row
-        csv_writer.writerows(tip_sizes)  # Write data rows
+        csv_writer.writerows(tip_sizes)  # Write rows with frame and size
     
     print(f"Tip sizes saved to tip_sizes.csv")
     
     return tip_sizes
+
 
 
 def calculate_overall_average_tip_size(tracked_tips, binary_images, radius_microns=10):
@@ -488,7 +512,13 @@ def calculate_biomass_over_time(image_files, fov_1x, magnification):
 
 def identify_spores(image, min_size, max_size, circularity_threshold):
     """
-    Identify spores in the image based on size and circularity.
+    Identify spores in the image based on size and circularity, and save their IDs, locations, and sizes to a CSV file.
+    
+    :param image: Input grayscale image.
+    :param min_size: Minimum size of objects to consider as spores.
+    :param max_size: Maximum size of objects to consider as spores.
+    :param circularity_threshold: Minimum circularity to consider an object as a spore.
+    :return: List of dictionaries with spore IDs, locations, and sizes.
     """
     # Preprocess the image
     threshold = threshold_otsu(image)
@@ -501,16 +531,26 @@ def identify_spores(image, min_size, max_size, circularity_threshold):
     spores = []
 
     # Analyze each contour
-    for contour in contours:
+    for spore_id, contour in enumerate(contours):
         area = cv2.contourArea(contour)
         perimeter = cv2.arcLength(contour, True)
         if min_size <= area <= max_size and perimeter > 0:
             circularity = (4 * np.pi * area) / (perimeter ** 2)
             if circularity >= circularity_threshold:
                 (x, y), _ = cv2.minEnclosingCircle(contour)  # Center of spore
-                spores.append({"center": (int(x), int(y)), "size": area})
+                spores.append({"id": spore_id, "center": (int(x), int(y)), "size": area})
+
+    # Save the results to a CSV file
+    with open("spores_with_ids_and_locations.csv", mode="w", newline="") as csvfile:
+        csv_writer = csv.writer(csvfile)
+        csv_writer.writerow(["Spore ID", "Center X", "Center Y", "Size (µm²)"])  # Header row
+        for spore in spores:
+            csv_writer.writerow([spore["id"], spore["center"][0], spore["center"][1], spore["size"]])
+
+    print(f"Spores with IDs and locations saved to spores_with_ids_and_locations.csv")
 
     return spores
+
 
 
 
@@ -519,17 +559,16 @@ from scipy.spatial.distance import cdist
 
 def track_spores_over_time(image_files, min_size=10, max_size=200, circularity_threshold=0.7, distance_threshold=15):
     """
-    Track spores over time across a sequence of images and output their sizes over time.
+    Track spores over time across a sequence of images and output their sizes and positions over time.
     
-    :param image_files: List of file paths to the PNG images.
+    :param image_files: List of file paths to the images.
     :param min_size: Minimum size of objects to consider as spores.
     :param max_size: Maximum size of objects to consider as spores.
     :param circularity_threshold: Minimum circularity to consider an object as a spore.
     :param distance_threshold: Maximum distance to match spores between frames.
-    :return: Dictionary of tracked spores with their sizes over time.
+    :return: Dictionary of tracked spores with their sizes and positions over time.
     """
-
-    # Dictionary to store tracked spores: {spore_id: {"history": [(frame_idx, size)], "last_position": (x, y)}}
+    # Dictionary to store tracked spores: {spore_id: {"history": [(frame_idx, size, (x, y))], "last_position": (x, y)}}
     tracked_spores = {}
     next_spore_id = 0
 
@@ -547,7 +586,7 @@ def track_spores_over_time(image_files, min_size=10, max_size=200, circularity_t
             # Initialize tracking for the first frame
             for spore in current_spores:
                 tracked_spores[next_spore_id] = {
-                    "history": [(frame_idx, spore["size"])],
+                    "history": [(frame_idx, spore["size"], spore["center"])],
                     "last_position": spore["center"],
                 }
                 next_spore_id += 1
@@ -566,7 +605,9 @@ def track_spores_over_time(image_files, min_size=10, max_size=200, circularity_t
                 nearest_idx = np.argmin(distances[spore_id])
                 if distances[spore_id, nearest_idx] < distance_threshold:
                     # Update the spore's history and last position
-                    tracked_spores[spore_id]["history"].append((frame_idx, current_spores[nearest_idx]["size"]))
+                    tracked_spores[spore_id]["history"].append(
+                        (frame_idx, current_spores[nearest_idx]["size"], current_spores[nearest_idx]["center"])
+                    )
                     tracked_spores[spore_id]["last_position"] = current_spores[nearest_idx]["center"]
                     matched_current.add(nearest_idx)
 
@@ -574,29 +615,27 @@ def track_spores_over_time(image_files, min_size=10, max_size=200, circularity_t
             for j, spore in enumerate(current_spores):
                 if j not in matched_current:
                     tracked_spores[next_spore_id] = {
-                        "history": [(frame_idx, spore["size"])],
+                        "history": [(frame_idx, spore["size"], spore["center"])],
                         "last_position": spore["center"],
                     }
                     next_spore_id += 1
 
-    # Save spore size histories to a CSV file
-    with open("spore_sizes.csv", mode="w", newline="") as csvfile:
+    # Save spore size and position histories to a CSV file
+    with open("tracked_spores.csv", mode="w", newline="") as csvfile:
         csv_writer = csv.writer(csvfile)
         # Write header
-        header = ["Spore ID"] + [f"Frame {i}" for i in range(len(image_files))]
+        header = ["Spore ID", "Frame", "Size (µm²)", "Center X", "Center Y"]
         csv_writer.writerow(header)
 
         # Write spore data
         for spore_id, data in tracked_spores.items():
-            sizes = [entry[1] for entry in data["history"]]
-            row = [spore_id] + sizes
-            csv_writer.writerow(row)
+            for frame_idx, size, center in data["history"]:
+                csv_writer.writerow([spore_id, frame_idx, size, center[0], center[1]])
 
-    print(f"Spore sizes saved to spore_sizes.csv")
+    print(f"Tracked spore data (sizes and positions) saved to tracked_spores.csv")
 
-    # Extract the size history for each spore
-    spore_size_histories = {spore_id: [entry[1] for entry in data["history"]] for spore_id, data in tracked_spores.items()}
-    return spore_size_histories
+    return tracked_spores
+
 
 
 # ========== SEQUENCE PROCESSING ==========
@@ -672,6 +711,17 @@ def track_tips_across_frames(tip_positions, distance_threshold=15):
                 tracked_tips[next_tip_id] = [(frame_idx, *current_tip)]
                 next_tip_id += 1
 
+
+    # Save the results to a CSV file
+    with open("tracked_tips.csv", mode="w", newline="") as csvfile:
+        csv_writer = csv.writer(csvfile)
+        csv_writer.writerow(["Tip ID", "Frame", "Y", "X"])  # Header row
+        for tip_id, positions in tracked_tips.items():
+            for position in positions:
+                csv_writer.writerow([tip_id, position[0], position[1], position[2]])
+
+    print(f"Tracked tips data saved to tracked_tips.csv")
+
     return tracked_tips
 
 
@@ -730,7 +780,7 @@ biomass_values = []
 print(image_files[0])
 
 for frame_idx, image_file in enumerate(image_files):
-#     # Load the image
+    # Load the image
     image = cv2.imread(image_file, cv2.IMREAD_GRAYSCALE)
 
     # Preprocess and visualize
@@ -773,15 +823,18 @@ print("General Average Growth Rate:", general_average_growth_rate)
 # Calculate distances to ROI for a specific tip
 tip_id = 0  # Example tip ID
 distances_to_roi = calculate_distances_to_roi(tracked_tips, tip_id, roi)
-# Format the distances to 3 significant figures and add units (e.g., µm)
-distances_to_roi = [f"{distance:.3g} µm" for distance in distances_to_roi]
-print(f"Distances of Tip {tip_id} to ROI:", distances_to_roi)
+
+# Extract only the distances for formatting
+formatted_distances = [f"Frame {frame}: {distance:.3g} µm" for frame, distance in distances_to_roi]
+print(f"Distances of Tip {tip_id} to ROI:", formatted_distances)
 
 # Calculate growth angles for a specific tip
 growth_angles = calculate_growth_angles(tracked_tips, tip_id)
-# Format the growth angles to 3 significant figures and add units (e.g., degrees)
-growth_angles = [f"{angle:.3g}°" for angle in growth_angles]
-print(f"Growth Angles for Tip {tip_id}:", growth_angles)
+
+# Extract only the angles for formatting
+formatted_growth_angles = [f"Frame {frame}: {angle:.3g}°" for frame, angle in growth_angles]
+print(f"Growth Angles for Tip {tip_id}:", formatted_growth_angles)
+
 
 # Calculate branching rate
 branching_events_per_frame, total_branching_events = calculate_branching_rate(
@@ -826,8 +879,8 @@ binary_images = [  # Process binary images for each frame
 tip_sizes_over_time = track_tip_size_over_time(tracked_tips, binary_images, tip_id)
 
 # Output sizes over time
-for frame_idx, tip_size in enumerate(tip_sizes_over_time):
-    print(f"Tip {tip_id} size in Frame {frame_idx}: {tip_size:.3g} µm²")
+for frame, tip_size in tip_sizes_over_time:
+    print(f"Tip {tip_id} size in Frame {frame}: {tip_size:.3g} µm²")
 
 # Calculate the overall average tip size
 overall_average_tip_size = calculate_overall_average_tip_size(tracked_tips, binary_images, radius_microns=10)
