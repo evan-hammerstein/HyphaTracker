@@ -292,49 +292,50 @@ def calculate_average_growth_rate(tracked_tips, frame_interval, time_per_frame):
 
 #TIP GROWTH ANGLE
 
-def calculate_growth_angles(tracked_tips):
+def calculate_growth_angles(tracked_tips, tip_id):
     """
-    Calculate the growth angles for all tracked tips over time and save them to a CSV file.
+    Calculate the growth angles for a specific hyphal tip over time and save them to a CSV file.
     
     :param tracked_tips: Dictionary with tip IDs as keys and lists of positions [(frame, y, x)] as values.
-    :return: Dictionary with tip IDs as keys and lists of (frame, angle) tuples.
+    :param tip_id: The ID of the tip for which growth angles should be calculated.
+    :return: List of (frame, angle) tuples for the specified tip.
     """
-    all_growth_angles = {}  # Store growth angles for each tip
-
-    for tip_id, positions in tracked_tips.items():
-        growth_angles = []  # Store growth angles for the current tip
-        for i in range(1, len(positions)):
-            frame, y1, x1 = positions[i - 1]
-            _, y2, x2 = positions[i]
-            
-            # Compute differences
-            delta_x = x2 - x1
-            delta_y = y2 - y1
-            
-            # Calculate angle in radians and convert to degrees
-            angle_radians = math.atan2(delta_y, delta_x)
-            angle_degrees = math.degrees(angle_radians)
-            
-            growth_angles.append((frame, angle_degrees))  # Append frame and angle
+    if tip_id not in tracked_tips:
+        raise ValueError(f"Tip ID {tip_id} not found in tracked tips.")
+    
+    positions = tracked_tips[tip_id]  # Get the positions of the specified tip
+    growth_angles = []  # List to store growth angles
+    
+    for i in range(1, len(positions)):
+        frame, y1, x1 = positions[i - 1]
+        _, y2, x2 = positions[i]
         
-        all_growth_angles[tip_id] = growth_angles  # Store results for this tip
-
+        # Compute differences
+        delta_x = x2 - x1
+        delta_y = y2 - y1
+        
+        # Calculate angle in radians and convert to degrees
+        angle_radians = math.atan2(delta_y, delta_x)
+        angle_degrees = math.degrees(angle_radians)
+        
+        growth_angles.append((frame, angle_degrees))  # Append frame and angle
+    
     # Save the results to a CSV file
-    with open("growth_angles.csv", mode="w", newline="") as csvfile:
+    with open(f"growth_angles_tip_{tip_id}.csv", mode="w", newline="") as csvfile:
         csv_writer = csv.writer(csvfile)
         
         # Write header row
         header = ["Tip ID", "Frame", "Growth Angle (degrees)"]
         csv_writer.writerow(header)
         
-        # Write data for all tips
-        for tip_id, angles in all_growth_angles.items():
-            for frame, angle in angles:
-                csv_writer.writerow([tip_id, frame, angle])
+        # Write data for the specified tip
+        for frame, angle in growth_angles:
+            csv_writer.writerow([tip_id, frame, angle])
     
-    print(f"Growth angles for all tips saved to growth_angles.csv")
+    print(f"Growth angles for Tip {tip_id} saved to growth_angles_tip_{tip_id}.csv")
+    
+    return growth_angles
 
-    return all_growth_angles
 
 
 def calculate_tip_size(binary_image, tip_position, radius_microns = 10):
@@ -378,13 +379,13 @@ def calculate_tip_size(binary_image, tip_position, radius_microns = 10):
 
 def track_tip_size_over_time(tracked_tips, binary_images, tip_id, radius_microns=10):
     """
-    Track the size of a specific tip over time across multiple frames.
+    Track the size of a specific tip over time across multiple frames and save results to a CSV file.
     
     :param tracked_tips: Dictionary with tip IDs as keys and lists of positions [(frame, y, x)] as values.
     :param binary_images: List of binary images (one per frame).
     :param tip_id: The ID of the tip to track.
     :param radius_microns: Radius around the tip in microns.
-    :return: List of tuples (frame, tip size in µm²) over time.
+    :return: List of tuples (frame, tip size in µm²) over time for the specified tip.
     """
     if tip_id not in tracked_tips:
         raise ValueError(f"Tip ID {tip_id} not found in tracked tips.")
@@ -401,14 +402,19 @@ def track_tip_size_over_time(tracked_tips, binary_images, tip_id, radius_microns
         tip_sizes.append((frame, tip_size))  # Store frame and size as a tuple
     
     # Save the results to a CSV file
-    with open("tip_sizes.csv", mode="w", newline="") as csvfile:
+    output_filename = f"tip_sizes_tip_{tip_id}.csv"
+    with open(output_filename, mode="w", newline="") as csvfile:
         csv_writer = csv.writer(csvfile)
-        csv_writer.writerow(["Frame", "Tip Size (µm²)"])  # Header row
-        csv_writer.writerows(tip_sizes)  # Write rows with frame and size
+        # Write header row
+        csv_writer.writerow(["Tip ID", "Frame", "Tip Size (µm²)"])
+        # Write data rows
+        for frame, tip_size in tip_sizes:
+            csv_writer.writerow([tip_id, frame, tip_size])
     
-    print(f"Tip sizes saved to tip_sizes.csv")
+    print(f"Tip sizes for Tip {tip_id} saved to {output_filename}")
     
     return tip_sizes
+
 
 
 
