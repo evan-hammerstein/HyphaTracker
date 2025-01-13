@@ -294,7 +294,7 @@ def calculate_average_growth_rate(tracked_tips, frame_interval, time_per_frame):
 
 #TIP GROWTH ANGLE
 
-def calculate_growth_angles_for_all_tips(tracked_tips):
+def calculate_growth_angles(tracked_tips):
     """
     Calculate the growth angles for all tracked tips over time and save them to a CSV file.
     
