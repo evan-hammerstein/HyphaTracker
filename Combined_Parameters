@@ -794,7 +794,7 @@ def calculate_biomass_over_time(image_files, pixel_area, output_folder="csv_file
 
 def identify_spores(image, min_size, max_size, circularity_threshold):
     """
-    Identify spores in the image based on size, circularity, and proximity to biomass.
+    Identify spores in the image based on size, circularity, and strong proximity to biomass.
     """
     # Preprocess the image
     threshold = threshold_otsu(image)
@@ -818,11 +818,13 @@ def identify_spores(image, min_size, max_size, circularity_threshold):
                 mask = np.zeros_like(cleaned_image, dtype=np.uint8)
                 cv2.drawContours(mask, [contour], -1, 255, thickness=cv2.FILLED)
 
-                # Dilate the spore mask to include surrounding areas
+                # Extract pixels around the spore
                 dilated_mask = cv2.dilate(mask, kernel, iterations=5)
-                overlap = cv2.bitwise_and(dilated_mask, binary_image)
+                biomass_overlap = cv2.bitwise_and(dilated_mask, binary_image)
+                biomass_fraction = np.sum(biomass_overlap) / np.sum(dilated_mask)
 
-                if np.any(overlap):  # If surrounding area contains biomass
+                # Require a minimum fraction of biomass overlap for connection
+                if biomass_fraction > 0.5:  # At least 50% of surrounding pixels must be biomass
                     (x, y), _ = cv2.minEnclosingCircle(contour)  # Center of spore
                     spores.append({"center": (int(x), int(y)), "size": area})
 
@@ -1103,7 +1105,18 @@ image_files.sort(key=extract_frame_number)
 #outputs_dir = sys.argv[6]  # Base output directory from command-line arguments
 outputs_dir = "outputs"  # Base output directory from command-line arguments
 
+# MAKE ALL OF THE FOLLOWING BE INPUTS FROM GUI
 magnification = 10  # Magnification level
+time_per_frame = 2  # Time difference between consecutive frames in hours
+frame_interval = 2  # Frame interval for growth rate calculations
+distance_threshold = 15  # Distance threshold for tip tracking
+min_size_spores = 10  # Minimum size for spores
+max_size_spores = 200  # Maximum size for spores
+circularity_threshold = 0.7  # Circularity threshold for spores
+tip_id = 500
+roi_polygon = [
+    (1000, 1000), (4000, 1000), (4000, 4000), (1000, 4000)
+]  # ROI polygon coordinates
 if magnification == 10:
     pixel_area = 0.65**2
 elif magnification == 20:
@@ -1112,16 +1125,6 @@ elif magnification == 40:
     pixel_area = 0.17**2
 elif magnification == 100:
     pixel_area = 0.07**2
-
-time_per_frame = 2  # Time difference between consecutive frames in hours
-frame_interval = 2  # Frame interval for growth rate calculations
-distance_threshold = 15  # Distance threshold for tip tracking
-min_size_spores = 10  # Minimum size for spores
-max_size_spores = 200  # Maximum size for spores
-circularity_threshold = 0.7  # Circularity threshold for spores
-roi_polygon = [
-    (1000, 1000), (4000, 1000), (4000, 4000), (1000, 4000)
-]  # ROI polygon coordinates
 
 # Create output subfolders
 csv_folder = os.path.join(outputs_dir, "csv_files")
@@ -1171,7 +1174,6 @@ for frame_idx, image_file in enumerate(image_files):
 tracked_tips = track_tips_across_frames(tip_positions_sequence, distance_threshold, csv_folder)
 
 # Visualize distances to ROI
-tip_id = 500
 calculate_distances_to_roi_and_visualize(
     tracked_tips, tip_id, roi_polygon, images, visuals_folder, csv_folder
 )
