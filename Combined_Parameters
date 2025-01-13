@@ -189,12 +189,6 @@ def visualize_tracked_tips(tracked_tips, image_file, frame_idx, visuals_folder="
 
 # Detect endpoints
 
-# Global CSV output folder
-global_csv_folder = "function_outputs"
-if not os.path.exists(global_csv_folder):
-    os.makedirs(global_csv_folder)
-    print(f"Global folder created: {global_csv_folder}")
-
 
 def save_to_csv(data, filepath):
     """
@@ -876,6 +870,8 @@ def track_spores_over_time(image_files, min_size=10, max_size=200, circularity_t
         for spore_id, data in tracked_spores.items():
             for frame_idx, size, center in data["history"]:
                 csv_writer.writerow([spore_id, frame_idx, size, center[0], center[1]])
+    
+    print("Spore data saved to CSV")
 
     # Extract the size history for each spore
     spore_size_histories = {spore_id: [entry[1] for entry in data["history"]] for spore_id, data in tracked_spores.items()}
@@ -936,6 +932,11 @@ def track_tips_across_frames(tip_positions, distance_threshold=15, output_folder
     :param output_folder: Folder to save the resulting CSV file.
     :return: Dictionary with keys as tip IDs and values as lists of positions [(frame, y, x)].
     """
+    # Ensure the output folder exists
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+        print(f"Output folder created: {output_folder}")
+    
     # Step 1: Initialize variables for tracking
     tracked_tips = {}  # Dictionary to store tip tracking {tip_id: [(frame, y, x)]}
     next_tip_id = 0  # Unique ID for each tip (keys of dictionary)
@@ -969,16 +970,18 @@ def track_tips_across_frames(tip_positions, distance_threshold=15, output_folder
                 next_tip_id += 1
 
     # Step 4: Save the results to a CSV file
-    os.makedirs(output_folder, exist_ok=True)  # Ensure the output folder exists
-    output_file = os.path.join(output_folder, "tracked_tips.csv")
-    with open(output_file, mode="w", newline="") as csvfile:
+    csv_file = os.path.join(output_folder, "tracked_tips.csv")
+    with open(csv_file, mode="w", newline="") as csvfile:
         csv_writer = csv.writer(csvfile)
         csv_writer.writerow(["Tip ID", "Frame", "Y", "X"])  # Header row
         for tip_id, positions in tracked_tips.items():
             for position in positions:
                 csv_writer.writerow([tip_id, position[0], position[1], position[2]])
 
+    print(f"Tracked tips saved to {csv_file}")
     return tracked_tips
+
+
 
 
 # ========== MAKE GRAPHS ==========
