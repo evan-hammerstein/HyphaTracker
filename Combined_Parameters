@@ -18,7 +18,9 @@ image = cv2.imread('C:/Users/noahweiler/Library/CloudStorage/OneDrive-ImperialCo
 # ========== IMAGE PROCESSING FUNCTIONS ==========
 
 # Preprocess Image
-def preprocess_image(image):
+def preprocess_image(image, crop_points = [(1625, 1032), (1827, 3045), (1897, 5848), 
+        (2614, 6323), (9328, 5879), (9875, 5354),
+        (9652, 2133), (9592, 376), (1988, 780)]):
     """
     Preprocess the image by cropping (using a predefined polygon region), 
     applying Otsu's thresholding, and binarizing the image.
@@ -26,12 +28,6 @@ def preprocess_image(image):
     :param image: Grayscale image as a NumPy array.
     :return: Binary image as a NumPy array (1 for foreground, 0 for background).
     """
-    # Define the crop points (polygon coordinates)
-    crop_points = [
-        (1625, 1032), (1827, 3045), (1897, 5848), 
-        (2614, 6323), (9328, 5879), (9875, 5354),
-        (9652, 2133), (9592, 376), (1988, 780)
-    ]
 
     # Step 1: Create a mask for non-rectangular cropping
     # Create an empty mask
@@ -278,7 +274,7 @@ import cv2
 import numpy as np
 import csv
 
-def calculate_distances_to_roi_and_visualize(tracked_tips, tip_id, roi_vertices, images, visuals_folder, output_folder):
+def calculate_distances_to_roi_and_visualize(tracked_tips, tip_id, roi_vertices, images, visuals_folder, csv_folder):
     """
     Calculate the distances of a specific hyphal tip to a rectangular region of interest (ROI) and create visualizations.
 
@@ -287,7 +283,7 @@ def calculate_distances_to_roi_and_visualize(tracked_tips, tip_id, roi_vertices,
     :param roi_vertices: List of exactly 4 vertices [(x1, y1), (x2, y2), (x3, y3), (x4, y4)] defining the rectangle ROI.
     :param images: List of images corresponding to each frame.
     :param visuals_folder: Folder path to store visualizations.
-    :param output_folder: Folder path to store CSV data.
+    :param csv_folder: Folder path to store CSV data.
     :return: List of distances to the ROI for the specified tip over all frames.
     """
     if tip_id not in tracked_tips:
@@ -296,14 +292,14 @@ def calculate_distances_to_roi_and_visualize(tracked_tips, tip_id, roi_vertices,
     if len(roi_vertices) != 4:
         raise ValueError("ROI must be defined by exactly 4 vertices.")
 
-    # Ensure folders exist
+    # Ensure the folders exist
     os.makedirs(visuals_folder, exist_ok=True)
-    os.makedirs(output_folder, exist_ok=True)
+    os.makedirs(csv_folder, exist_ok=True)
 
     distances = []
     visualization_data = [["Frame", "Shortest Distance to ROI (µm)"]]
 
-    # Create the polygon as a flat NumPy array of shape (N, 2)
+    # Convert ROI vertices into a proper NumPy array
     roi_polygon = np.array(roi_vertices, dtype=np.int32)
 
     for frame_idx, (frame, y_tip, x_tip) in enumerate(tracked_tips[tip_id]):
@@ -312,15 +308,15 @@ def calculate_distances_to_roi_and_visualize(tracked_tips, tip_id, roi_vertices,
 
         # Get the corresponding grayscale image for the frame
         image = images[frame_idx]
-
+        
         # Convert the image to RGB for visualization
         visualized_image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
-
+        
         # Highlight the ROI in yellow
         cv2.polylines(visualized_image, [roi_polygon], isClosed=True, color=(0, 255, 255), thickness=2)
-
+        
         # Highlight the tip in red
-        cv2.circle(visualized_image, (x_tip, y_tip), radius=5, color=(0, 0, 255), thickness=-1)
+        cv2.circle(visualized_image, (int(x_tip), int(y_tip)), radius=5, color=(0, 0, 255), thickness=-1)
 
         # Convert tip position to float for `pointPolygonTest`
         tip_point = (float(x_tip), float(y_tip))
@@ -338,33 +334,34 @@ def calculate_distances_to_roi_and_visualize(tracked_tips, tip_id, roi_vertices,
                 # Get consecutive points in the polygon
                 x1, y1 = roi_vertices[i]
                 x2, y2 = roi_vertices[(i + 1) % len(roi_vertices)]  # Wrap around to the first point
-
+                
                 # Compute the closest point on the line segment to the tip
                 px, py = closest_point_on_line_segment(x1, y1, x2, y2, x_tip, y_tip)
                 distance = np.sqrt((px - x_tip) ** 2 + (py - y_tip) ** 2)
                 if distance < shortest_distance:
                     shortest_distance = distance
                     closest_point = (px, py)
-
+            
             distances.append(shortest_distance)
             visualization_data.append([frame_idx, f"{shortest_distance:.3f}"])
 
-        # Draw the dotted line between the tip and the closest point on the ROI
-        if closest_point:
-            px, py = closest_point
-            draw_dotted_line(visualized_image, (x_tip, y_tip), (int(px), int(py)), color=(255, 255, 255))
-
+            # Draw the dotted line between the tip and the closest point on the ROI
+            if closest_point:
+                px, py = closest_point
+                draw_dotted_line(visualized_image, (int(x_tip), int(y_tip)), (int(px), int(py)), color=(255, 255, 0))
+        
         # Save the visualization
         output_path = os.path.join(visuals_folder, f"tip_{tip_id}_frame_{frame_idx}.png")
         cv2.imwrite(output_path, visualized_image)
 
     # Save distances to a CSV file
-    csv_file_path = os.path.join(output_folder, f"distances_to_roi_tip_{tip_id}.csv")
+    csv_file_path = os.path.join(csv_folder, f"distances_to_roi_tip_{tip_id}.csv")
     with open(csv_file_path, mode="w", newline="") as csvfile:
         csv_writer = csv.writer(csvfile)
         csv_writer.writerows(visualization_data)
-
-    print(f"Distances to ROI for Tip {tip_id} saved to {csv_file_path} and visualizations saved in {visuals_folder}.")
+    
+    print(f"Distances to ROI for Tip {tip_id} saved to {csv_file_path}.")
+    print(f"Visualizations saved in {visuals_folder}.")
 
     return distances
 
