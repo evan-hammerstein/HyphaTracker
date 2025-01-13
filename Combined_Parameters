@@ -106,7 +106,6 @@ def display_tips(binary_image, tips, frame_idx, visuals_folder="visuals"):
     # Mark tips with red dots and labels
     for idx, (y, x) in enumerate(tips):
         plt.scatter(x, y, c='red', s=0.5)
-        plt.text(x + 2, y - 2, str(idx + 1), color='yellow', fontsize=6)
 
     title = f"Skeleton with Tips - Frame {frame_idx}"
     plt.title(title)
@@ -118,7 +117,7 @@ def display_tips(binary_image, tips, frame_idx, visuals_folder="visuals"):
         plt.savefig(save_path, bbox_inches='tight', dpi=300)
         print(f"Saved visualization to {save_path}")
 
-    plt.show()
+
 
 
 # Visualize tracked tips
@@ -1144,7 +1143,6 @@ graph_folder = os.path.join(outputs_dir, "graphs")
 os.makedirs(csv_folder, exist_ok=True)
 os.makedirs(visuals_folder, exist_ok=True)
 os.makedirs(graph_folder, exist_ok=True)
-
 # Process image sequence
 tip_positions_sequence = []
 biomass_values = []
@@ -1156,9 +1154,15 @@ image_files = sorted(
     key=extract_frame_number
 )
 
+# Ensure visuals folder exists
+visuals_folder = "visuals"
+os.makedirs(visuals_folder, exist_ok=True)
+
 for frame_idx, image_file in enumerate(image_files):
     # Load and preprocess image
     image = cv2.imread(image_file, cv2.IMREAD_GRAYSCALE)
+    if image is None:
+        raise FileNotFoundError(f"Image file not found: {image_file}")
     images.append(image)
 
     binary_image = preprocess_image(image)
@@ -1169,9 +1173,14 @@ for frame_idx, image_file in enumerate(image_files):
     endpoints = find_hyphal_endpoints(filtered_skeleton, frame_idx, csv_folder)
     tip_positions_sequence.append(endpoints)
 
+    # Display and save the skeleton with tips visualized
+    display_tips(binary_image, endpoints, frame_idx, visuals_folder=visuals_folder)
+
     # Calculate biomass
     biomass = find_biomass(binary_image, fov_1x, magnification)
     biomass_values.append(biomass)
+
+    print(f"Processed frame {frame_idx}")
 
 # Track hyphal tips
 tracked_tips = track_tips_across_frames(tip_positions_sequence, distance_threshold, csv_folder)
