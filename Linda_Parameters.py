@@ -738,7 +738,25 @@ def track_tips_across_frames(tip_positions, distance_threshold=15):
 
     return tracked_tips
 
+# ========== MAKE GRAPHS ==========
 
+# Plotting the growth rate of a tip
+
+# Plotting the growth angle of a tip
+
+# Plotting the size of a tip
+
+# Plotting the average growth rate of all tips
+
+# Plotting the biomass
+
+# Plotting the branching rate
+
+# Plotting the distance to ROI
+
+# Plotting the spore nummber
+
+# Plotting the spore size
 
 # ========== MAIN EXECUTION ==========
 
