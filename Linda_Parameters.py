@@ -7,9 +7,10 @@ from skimage.measure import label, regionprops
 from scipy.ndimage import convolve
 import matplotlib.pyplot as plt
 import math
+import csv
 
 # Load the grayscale image
-image = cv2.imread('/Users/noahweiler/Library/CloudStorage/OneDrive-ImperialCollegeLondon/Noah SWE Project/HyphaTracker/Skeletonized_image.png', cv2.IMREAD_GRAYSCALE)
+image = cv2.imread('C:/Users/ls2221/OneDrive - Imperial College London/Year 3/Software Engineering/Project/Proc_Ims/processed_frame_1_20250112_090205.tif', cv2.IMREAD_GRAYSCALE)
 
 # ========== IMAGE PROCESSING FUNCTIONS ==========
 
@@ -351,6 +352,7 @@ def calculate_tip_size(binary_image, tip_position, radius_microns = 10):
     tip_size = tip_pixels * pixel_area
     return tip_size
 
+import csv
 
 def track_tip_size_over_time(tracked_tips, binary_images, tip_id, radius_microns = 10):
     """
@@ -374,8 +376,16 @@ def track_tip_size_over_time(tracked_tips, binary_images, tip_id, radius_microns
         binary_image = binary_images[frame]
         
         # Calculate the size of the tip in the current frame
-        tip_size = calculate_tip_size(binary_image, (y, x), radius_microns, pixel_area)
+        tip_size = calculate_tip_size(binary_image, (y, x), radius_microns)
         tip_sizes.append(tip_size)
+    
+    # Save the results to a CSV file
+    with open("tip_sizes.csv", mode="w", newline="") as csvfile:
+        csv_writer = csv.writer(csvfile)
+        csv_writer.writerow(["Frame", "Tip Size (µm²)"])  # Header row
+        csv_writer.writerows(tip_sizes)  # Write data rows
+    
+    print(f"Tip sizes saved to tip_sizes.csv")
     
     return tip_sizes
 
@@ -458,6 +468,16 @@ def calculate_biomass_over_time(image_files, fov_1x, magnification):
         # Calculate biomass
         biomass = find_biomass(binary_image, fov_1x, magnification)
         biomass_values.append(biomass)
+
+    # Save biomass values to a CSV file
+    with open("biomass.csv", mode="w", newline="") as csvfile:
+        csv_writer = csv.writer(csvfile)
+        # Write header
+        csv_writer.writerow(["Frame", "Biomass (µm²)"])
+        # Write data
+        csv_writer.writerows(biomass_values)
+
+    print(f"Biomass values saved to biomass.csv")
 
     return biomass_values
 
@@ -559,6 +579,21 @@ def track_spores_over_time(image_files, min_size=10, max_size=200, circularity_t
                     }
                     next_spore_id += 1
 
+    # Save spore size histories to a CSV file
+    with open("spore_sizes.csv", mode="w", newline="") as csvfile:
+        csv_writer = csv.writer(csvfile)
+        # Write header
+        header = ["Spore ID"] + [f"Frame {i}" for i in range(len(image_files))]
+        csv_writer.writerow(header)
+
+        # Write spore data
+        for spore_id, data in tracked_spores.items():
+            sizes = [entry[1] for entry in data["history"]]
+            row = [spore_id] + sizes
+            csv_writer.writerow(row)
+
+    print(f"Spore sizes saved to spore_sizes.csv")
+
     # Extract the size history for each spore
     spore_size_histories = {spore_id: [entry[1] for entry in data["history"]] for spore_id, data in tracked_spores.items()}
     return spore_size_histories
@@ -647,7 +682,12 @@ def track_tips_across_frames(tip_positions, distance_threshold=15):
 import os
 
 # Define the folder containing the images
-folder_path = '/Users/noahweiler/Library/CloudStorage/OneDrive-ImperialCollegeLondon/Noah SWE Project/Processed_images'
+folder_path = 'C:/Users/ls2221/OneDrive - Imperial College London/Year 3/Software Engineering/Project/Proc_Ims'
+
+if not os.path.exists(folder_path):
+    raise FileNotFoundError(f"Folder does not exist: {folder_path}")
+else:
+    print("Folder exists!")
 
 # Collect all `.tif` file paths from the folder
 image_files = [
@@ -715,7 +755,7 @@ for frame_idx, image_file in enumerate(image_files):
     #display_tips(binary_image, endpoints, frame_idx)
 
     # Visualize tracked tips
-    visualize_tracked_tips(tracked_tips, image_file, frame_idx)
+    #visualize_tracked_tips(tracked_tips, image_file, frame_idx)
 
 
 
