@@ -1108,7 +1108,7 @@ for frame_idx, image_file in enumerate(image_files):
     biomass_values.append(biomass)
 
 # Track hyphal tips
-tracked_tips = track_tips_across_frames(tip_positions_sequence, distance_threshold)
+tracked_tips = track_tips_across_frames(tip_positions_sequence, distance_threshold, csv_folder)
 
 # Visualize distances to ROI
 tip_id = 1000
@@ -1123,5 +1123,7 @@ calculate_branching_rate(tip_positions_sequence, distance_threshold, csv_folder)
 
 # Biomass analysis
 calculate_biomass_over_time(image_files, fov_1x, magnification, csv_folder)
+
+track_spores_over_time(image_files, 10, 200, 0.7, 15, csv_folder)
 
 print("Processing complete. Results saved in:", outputs_dir)
