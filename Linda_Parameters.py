@@ -829,7 +829,7 @@ formatted_distances = [f"Frame {frame}: {distance:.3g} µm" for frame, distance 
 print(f"Distances of Tip {tip_id} to ROI:", formatted_distances)
 
 # Calculate growth angles for a specific tip
-growth_angles = calculate_growth_angles(tracked_tips, tip_id)
+growth_angles = calculate_growth_angles(tracked_tips)
 
 # Extract only the angles for formatting
 formatted_growth_angles = [f"Frame {frame}: {angle:.3g}°" for frame, angle in growth_angles]
