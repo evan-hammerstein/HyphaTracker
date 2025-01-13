@@ -794,7 +794,7 @@ def calculate_biomass_over_time(image_files, pixel_area, output_folder="csv_file
 
 def identify_spores(image, min_size, max_size, circularity_threshold):
     """
-    Identify spores in the image based on size and circularity.
+    Identify spores in the image based on size, circularity, and proximity to biomass.
     """
     # Preprocess the image
     threshold = threshold_otsu(image)
@@ -810,13 +810,24 @@ def identify_spores(image, min_size, max_size, circularity_threshold):
     for contour in contours:
         area = cv2.contourArea(contour)
         perimeter = cv2.arcLength(contour, True)
+
         if min_size <= area <= max_size and perimeter > 0:
             circularity = (4 * np.pi * area) / (perimeter ** 2)
             if circularity >= circularity_threshold:
-                (x, y), _ = cv2.minEnclosingCircle(contour)  # Center of spore
-                spores.append({"center": (int(x), int(y)), "size": area})
+                # Check the area around the spore for biomass
+                mask = np.zeros_like(cleaned_image, dtype=np.uint8)
+                cv2.drawContours(mask, [contour], -1, 255, thickness=cv2.FILLED)
+
+                # Dilate the spore mask to include surrounding areas
+                dilated_mask = cv2.dilate(mask, kernel, iterations=5)
+                overlap = cv2.bitwise_and(dilated_mask, binary_image)
+
+                if np.any(overlap):  # If surrounding area contains biomass
+                    (x, y), _ = cv2.minEnclosingCircle(contour)  # Center of spore
+                    spores.append({"center": (int(x), int(y)), "size": area})
 
     return spores
+
 
 
 #NUMBER/SIZE/DISTRIBUTION OF SPORES (SPHERICAL STRUCTURES)
@@ -1160,7 +1171,7 @@ for frame_idx, image_file in enumerate(image_files):
 tracked_tips = track_tips_across_frames(tip_positions_sequence, distance_threshold, csv_folder)
 
 # Visualize distances to ROI
-tip_id = 1000
+tip_id = 500
 calculate_distances_to_roi_and_visualize(
     tracked_tips, tip_id, roi_polygon, images, visuals_folder, csv_folder
 )
@@ -1176,3 +1187,5 @@ calculate_biomass_over_time(image_files, pixel_area, csv_folder, graph_folder)
 track_spores_over_time(image_files, 10, 200, 0.7, 15, csv_folder, graph_folder)
 
 print("Processing complete. Results saved in:", outputs_dir)
+
+
