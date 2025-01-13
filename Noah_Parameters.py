@@ -288,7 +288,7 @@ def calculate_distances_to_roi_and_visualize(tracked_tips, tip_id, roi_vertices,
     os.makedirs(output_folder, exist_ok=True)
 
     # Create folders for visualizations and CSV
-    visualization_folder = os.path.join(output_folder, "visualizations")
+    visualization_folder = os.path.join(output_folder, "tip distance visualization")
     csv_folder = output_folder
     os.makedirs(visualization_folder, exist_ok=True)
     os.makedirs(csv_folder, exist_ok=True)
@@ -313,7 +313,7 @@ def calculate_distances_to_roi_and_visualize(tracked_tips, tip_id, roi_vertices,
         cv2.polylines(visualized_image, [roi_polygon], isClosed=True, color=(0, 255, 255), thickness=2)
         
         # Highlight the tip in red
-        cv2.circle(visualized_image, (x_tip, y_tip), radius=5, color=(0, 0, 255), thickness=-1)
+        cv2.circle(visualized_image, (x_tip, y_tip), s=5, color=(0, 0, 255), thickness=-1)
 
         # Check if the tip is inside the ROI
         point_in_roi = cv2.pointPolygonTest(roi_polygon, (x_tip, y_tip), False)
@@ -343,7 +343,7 @@ def calculate_distances_to_roi_and_visualize(tracked_tips, tip_id, roi_vertices,
             # Draw the dotted line between the tip and the closest point on the ROI
             if closest_point:
                 px, py = closest_point
-                draw_dotted_line(visualized_image, (x_tip, y_tip), (int(px), int(py)), color=(255, 255, 255))
+                draw_dotted_line(visualized_image, (x_tip, y_tip), (int(px), int(py)), color=(255, 255, 0))
         
         # Save the visualization
         output_path = os.path.join(visualization_folder, f"tip_{tip_id}_frame_{frame_idx}.png")
