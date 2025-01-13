@@ -355,6 +355,8 @@ def calculate_growth_angles(tracked_tips):
     return all_growth_angles
 
 
+
+
 def calculate_tip_size(binary_image, tip_position, radius_microns = 10):
     """
     Calculate the size of a single tip by counting the filled pixels within a specified radius.
@@ -393,6 +395,9 @@ def calculate_tip_size(binary_image, tip_position, radius_microns = 10):
     # Convert the count of pixels to area in microns squared
     tip_size = tip_pixels * pixel_area
     return tip_size
+
+
+
 
 def track_tip_size_over_time(tracked_tips, binary_images, tip_id, radius_microns=10):
     """
@@ -488,6 +493,8 @@ def find_biomass(binary_image, fov_1x, magnification):
     biomass_area = biomass_pixels * pixel_area  # Total biomass in µm²
 
     return biomass_area
+
+
 
 def calculate_biomass_over_time(image_files, fov_1x, magnification):
     """

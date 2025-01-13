@@ -552,20 +552,21 @@ def identify_spores(image, min_size, max_size, circularity_threshold):
 #NUMBER/SIZE/DISTRIBUTION OF SPORES (SPHERICAL STRUCTURES)
 from scipy.spatial.distance import cdist
 
-def track_spores_over_time(image_files, min_size=10, max_size=200, circularity_threshold=0.7, distance_threshold=15):
+def track_spores_over_time(image_files, spore_id, min_size=10, max_size=200, circularity_threshold=0.7, distance_threshold=15):
     """
-    Track spores over time across a sequence of images and output their sizes and positions over time.
-    
+    Track a specific spore over time across a sequence of images and output its size and position over time.
+
     :param image_files: List of file paths to the images.
+    :param spore_id: The ID of the spore to track.
     :param min_size: Minimum size of objects to consider as spores.
     :param max_size: Maximum size of objects to consider as spores.
     :param circularity_threshold: Minimum circularity to consider an object as a spore.
     :param distance_threshold: Maximum distance to match spores between frames.
-    :return: Dictionary of tracked spores with their sizes and positions over time.
+    :return: List of tuples (frame_idx, size, center) for the specified spore.
     """
-    # Dictionary to store tracked spores: {spore_id: {"history": [(frame_idx, size, (x, y))], "last_position": (x, y)}}
-    tracked_spores = {}
+    tracked_spores = {}  # Temporary storage for all spores during the process
     next_spore_id = 0
+    spore_history = []  # Store the history of the specified spore
 
     # Process each frame
     for frame_idx, file in enumerate(image_files):
@@ -595,15 +596,15 @@ def track_spores_over_time(image_files, min_size=10, max_size=200, circularity_t
             distances = cdist(previous_positions, current_positions)
 
             matched_current = set()
-            for spore_id, prev_position in enumerate(previous_positions):
+            for tracked_id, prev_position in enumerate(previous_positions):
                 # Find the nearest current spore
-                nearest_idx = np.argmin(distances[spore_id])
-                if distances[spore_id, nearest_idx] < distance_threshold:
+                nearest_idx = np.argmin(distances[tracked_id])
+                if distances[tracked_id, nearest_idx] < distance_threshold:
                     # Update the spore's history and last position
-                    tracked_spores[spore_id]["history"].append(
+                    tracked_spores[tracked_id]["history"].append(
                         (frame_idx, current_spores[nearest_idx]["size"], current_spores[nearest_idx]["center"])
                     )
-                    tracked_spores[spore_id]["last_position"] = current_spores[nearest_idx]["center"]
+                    tracked_spores[tracked_id]["last_position"] = current_spores[nearest_idx]["center"]
                     matched_current.add(nearest_idx)
 
             # Add new spores that were not matched
@@ -615,21 +616,25 @@ def track_spores_over_time(image_files, min_size=10, max_size=200, circularity_t
                     }
                     next_spore_id += 1
 
-    # Save spore size and position histories to a CSV file
-    with open("tracked_spores.csv", mode="w", newline="") as csvfile:
+    # Extract the history of the specified spore
+    if spore_id in tracked_spores:
+        spore_history = tracked_spores[spore_id]["history"]
+    else:
+        raise ValueError(f"Spore ID {spore_id} not found in the tracked spores.")
+
+    # Save the spore history to a CSV file
+    output_filename = f"spore_{spore_id}_history.csv"
+    with open(output_filename, mode="w", newline="") as csvfile:
         csv_writer = csv.writer(csvfile)
         # Write header
-        header = ["Spore ID", "Frame", "Size (µm²)", "Center X", "Center Y"]
-        csv_writer.writerow(header)
+        csv_writer.writerow(["Frame", "Size (µm²)", "Center X", "Center Y"])
+        # Write the spore's history
+        csv_writer.writerows([(frame, size, center[0], center[1]) for frame, size, center in spore_history])
 
-        # Write spore data
-        for spore_id, data in tracked_spores.items():
-            for frame_idx, size, center in data["history"]:
-                csv_writer.writerow([spore_id, frame_idx, size, center[0], center[1]])
+    print(f"History of Spore {spore_id} saved to {output_filename}")
 
-    print(f"Tracked spore data (sizes and positions) saved to tracked_spores.csv")
+    return spore_history
 
-    return tracked_spores
 
 
 
