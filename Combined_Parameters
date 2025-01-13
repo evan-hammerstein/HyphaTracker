@@ -1,3 +1,5 @@
+import sys
+import os
 import cv2
 import numpy as np
 from skimage import io, color
@@ -83,72 +85,90 @@ def filter_hyphae(binary_image, min_size=100):
 
 
 # ========== VISUALIZATION FUNCTIONS ==========
-
 # Display Image
-def show_image(image, title='Image'):
+def show_image(image, title='Image', visuals_folder="visuals"):
     """
-    Display the given image using matplotlib.
+    Display the given image and optionally save it to the visuals folder.
     :param image: Image to display.
     :param title: Title of the image window.
+    :param visuals_folder: Path to the shared visuals folder.
     """
     plt.imshow(image, cmap='gray')  # Display image in grayscale
     plt.title(title)  # Set the title of the plot
     plt.axis('off')  # Hide the axes for better visualization
+
+    # Save the image to the visuals folder if provided
+    if visuals_folder:
+        save_path = os.path.join(visuals_folder, f"{title.replace(' ', '_')}.png")
+        plt.savefig(save_path, bbox_inches='tight', dpi=300)
+        print(f"Saved visualization to {save_path}")
+
     plt.show()
 
 # Display Skeleton with Tips and Labels
-def display_tips(binary_image, tips, frame_idx):
+def display_tips(binary_image, tips, frame_idx, visuals_folder="visuals"):
     """
-    Display the skeleton image with tips marked as red dots and labeled with their coordinates.
-    
-    :param skeleton: Skeletonized binary image as a NumPy array.
+    Display the skeleton image with tips and save the visualization to the visuals folder.
+    :param binary_image: Skeletonized binary image.
     :param tips: List of (row, col) coordinates of tip positions.
-    :param frame_idx: (Optional) The frame index to display in the title.
+    :param frame_idx: Frame index to display in the title.
+    :param visuals_folder: Path to the shared visuals folder.
     """
-    # Create a plot
     plt.figure(figsize=(10, 10))
     plt.imshow(binary_image, cmap='gray')  # Display the skeleton
 
-    # Overlay red dots and labels for tips
+    # Mark tips with red dots and labels
     for idx, (y, x) in enumerate(tips):
-        plt.scatter(x, y, c='red', s=0.5, label=f"Tip {idx+1}" if idx == 0 else None)  # Adding red dot
+        plt.scatter(x, y, c='red', s=0.5)
+        plt.text(x + 2, y - 2, str(idx + 1), color='yellow', fontsize=6)
 
-    # Update title to include frame index if provided
-    title = "Binary image with Tips"
-    if frame_idx is not None:
-        title += f" for Frame {frame_idx}"
-    plt.title(title)  # Set the updated title
-
-    # Hide axes
+    title = f"Skeleton with Tips - Frame {frame_idx}"
+    plt.title(title)
     plt.axis('off')
 
-    # Display the image
+    # Save the visualization to the visuals folder if provided
+    if visuals_folder:
+        save_path = os.path.join(visuals_folder, f"tips_frame_{frame_idx}.png")
+        plt.savefig(save_path, bbox_inches='tight', dpi=300)
+        print(f"Saved visualization to {save_path}")
+
     plt.show()
+
 
 
 # Visualize tracked tips
-def visualize_tracked_tips(tracked_tips, image_file, frame_idx):
+def visualize_tracked_tips(tracked_tips, image_file, frame_idx, visuals_folder="visuals"):
     """
-    Visualize tracked tips over time.
-    
+    Visualize tracked tips and save the visualization to the visuals folder.
     :param tracked_tips: Dictionary of tracked tips.
-    :param image_files: List of file paths to the PNG images.
+    :param image_file: Path to the grayscale image file.
+    :param frame_idx: Frame index to visualize.
+    :param visuals_folder: Path to the shared visuals folder.
     """
-  
-    # image = cv2.imread(image_file, cv2.IMREAD_GRAYSCALE)
+    image = cv2.imread(image_file, cv2.IMREAD_GRAYSCALE)
     plt.imshow(image, cmap='gray')
-    
+
     # Overlay tracked tips
     for tip_id, positions in tracked_tips.items():
         for pos in positions:
-            if pos[0] == frame_idx:  # Check if this tip exists in the current frame
+            if pos[0] == frame_idx:
                 y, x = pos[1:]
-                plt.scatter(x, y, c='red', s=0.5)
-                plt.text(x + 2, y - 2, str(tip_id), color='yellow', fontsize=3)
-    
-    plt.title(f"Frame {frame_idx}")
+                plt.scatter(x, y, c='red', s=5)
+                plt.text(x + 2, y - 2, str(tip_id), color='yellow', fontsize=6)
+
+    title = f"Tracked Tips - Frame {frame_idx}"
+    plt.title(title)
     plt.axis('off')
+
+    # Save the visualization to the visuals folder if provided
+    if visuals_folder:
+        save_path = os.path.join(visuals_folder, f"tracked_tips_frame_{frame_idx}.png")
+        plt.savefig(save_path, bbox_inches='tight', dpi=300)
+        print(f"Saved visualization to {save_path}")
+
     plt.show()
+
+
 
 
 
@@ -203,7 +223,7 @@ from scipy.ndimage import convolve
 from skimage.measure import label
 import csv
 
-def find_hyphal_endpoints(filtered_skeleton, frame_idx, output_folder="hyphal_endpoints"):
+def find_hyphal_endpoints(filtered_skeleton, frame_idx, output_folder="csv_files"):
     """
     Detect endpoints of hyphae by identifying pixels with exactly one connected neighbor.
     Save the results for each frame in a separate CSV file.
@@ -259,7 +279,7 @@ import cv2
 import numpy as np
 import csv
 
-def calculate_distances_to_roi_and_visualize(tracked_tips, tip_id, roi_vertices, images, output_folder):
+def calculate_distances_to_roi_and_visualize(tracked_tips, tip_id, roi_vertices, images, visuals_folder, csv_folder):
     """
     Calculate the distances of a specific hyphal tip to a rectangular region of interest (ROI) and create visualizations.
 
@@ -267,7 +287,8 @@ def calculate_distances_to_roi_and_visualize(tracked_tips, tip_id, roi_vertices,
     :param tip_id: The ID of the tip for which distances should be calculated.
     :param roi_vertices: List of exactly 4 vertices [(x1, y1), (x2, y2), (x3, y3), (x4, y4)] defining the rectangle ROI.
     :param images: List of images corresponding to each frame.
-    :param output_folder: Folder path to store visualizations and CSV data.
+    :param visuals_folder: Pre-existing folder path to store visualizations.
+    :param csv_folder: Pre-existing folder path to store CSV data.
     :return: List of distances to the ROI for the specified tip over all frames.
     """
     if tip_id not in tracked_tips:
@@ -276,17 +297,9 @@ def calculate_distances_to_roi_and_visualize(tracked_tips, tip_id, roi_vertices,
     if len(roi_vertices) != 4:
         raise ValueError("ROI must be defined by exactly 4 vertices.")
 
-    # Ensure the base output folder exists
-    if not os.path.exists(output_folder):
-        os.makedirs(output_folder)
-
-    # Create folders for visualizations and CSV
-    visualization_folder = os.path.join(output_folder, "visualizations")
-    csv_folder = output_folder
-    if not os.path.exists(visualization_folder):
-        os.makedirs(visualization_folder)
-    if not os.path.exists(csv_folder):
-        os.makedirs(csv_folder)
+    # Ensure the folders exist (if already exist, this is a no-op)
+    os.makedirs(visuals_folder, exist_ok=True)
+    os.makedirs(csv_folder, exist_ok=True)
 
     distances = []
     visualization_data = [["Frame", "Shortest Distance to ROI (µm)"]]
@@ -334,7 +347,7 @@ def calculate_distances_to_roi_and_visualize(tracked_tips, tip_id, roi_vertices,
             draw_dotted_line(visualized_image, (x_tip, y_tip), (int(px), int(py)), color=(255, 255, 255))
         
         # Save the visualization
-        output_path = os.path.join(visualization_folder, f"tip_{tip_id}_frame_{frame_idx}.png")
+        output_path = os.path.join(visuals_folder, f"tip_{tip_id}_frame_{frame_idx}.png")
         cv2.imwrite(output_path, visualized_image)
 
     # Save distances to a CSV file
@@ -343,9 +356,10 @@ def calculate_distances_to_roi_and_visualize(tracked_tips, tip_id, roi_vertices,
         csv_writer = csv.writer(csvfile)
         csv_writer.writerows(visualization_data)
     
-    print(f"Distances to ROI for Tip {tip_id} saved to {csv_file_path} and visualizations saved in {visualization_folder}.")
+    print(f"Distances to ROI for Tip {tip_id} saved to {csv_file_path} and visualizations saved in {visuals_folder}.")
 
     return distances
+
 
 # Define helper functions
 def closest_point_on_line_segment(x1, y1, x2, y2, x, y):
@@ -384,7 +398,7 @@ def draw_dotted_line(image, start, end, color, thickness=1, gap=5):
 
 
 #TIP GROWTH RATE
-def calculate_average_growth_rate(tracked_tips, frame_interval, time_per_frame, output_folder):
+def calculate_average_growth_rate(tracked_tips, frame_interval, time_per_frame, output_folder = "csv_files"):
     """
     Calculate the average growth rate of hyphal tips over a specified number of frames.
     
@@ -446,7 +460,7 @@ def calculate_average_growth_rate(tracked_tips, frame_interval, time_per_frame, 
 
 #TIP GROWTH ANGLE
 
-def calculate_growth_angles(tracked_tips, tip_id, output_folder):
+def calculate_growth_angles(tracked_tips, tip_id, output_folder = "csv_files"):
     """
     Calculate the growth angles of a specific hyphal tip over time with respect to the horizontal.
 
@@ -534,7 +548,7 @@ def calculate_tip_size(binary_image, tip_position, radius_microns=10, fov_1x=(10
 import os
 import csv
 
-def track_tip_size_over_time(tracked_tips, binary_images, tip_id, radius_microns=10, output_folder="csv_outputs"):
+def track_tip_size_over_time(tracked_tips, binary_images, tip_id, radius_microns=10, output_folder="csv_files"):
     """
     Track the size of a specific tip over time across multiple frames and save the results to a CSV file.
 
@@ -575,7 +589,7 @@ def track_tip_size_over_time(tracked_tips, binary_images, tip_id, radius_microns
     return tip_sizes
 
 
-def calculate_overall_average_tip_size(tracked_tips, binary_images, radius_microns=10, output_folder="csv_outputs"):
+def calculate_overall_average_tip_size(tracked_tips, binary_images, radius_microns=10, output_folder="csv_files"):
     """
     Calculate the overall average size of all tips across all frames and save the result to a CSV file.
 
@@ -624,7 +638,7 @@ import os
 import csv
 from scipy.spatial.distance import cdist
 
-def calculate_branching_rate(tip_positions, distance_threshold=15, output_folder="csv_outputs"):
+def calculate_branching_rate(tip_positions, distance_threshold=15, output_folder="csv_files"):
     """
     Calculate the branching rate/frequency of fungal hyphae over time and save to a CSV file.
 
@@ -711,7 +725,7 @@ def find_biomass(binary_image, fov_1x, magnification):
     return biomass_area
 
 
-def calculate_biomass_over_time(image_files, fov_1x, magnification, output_folder="csv_outputs"):
+def calculate_biomass_over_time(image_files, fov_1x, magnification, output_folder="csv_files"):
     """
     Calculate biomass over time for a sequence of images and save to a CSV file.
 
@@ -990,7 +1004,7 @@ def track_tips_across_frames(tip_positions, distance_threshold=15):
 # ========== Input Parameters ==========
 import os
 
-# Define the folder containing the images
+# Define the folder containing the images - outputs dir
 folder_path = '/Users/noahweiler/Library/CloudStorage/OneDrive-ImperialCollegeLondon/Noah SWE Project/Processed_images'
 
 # Collect all `.tif` file paths from the folder
@@ -1015,124 +1029,72 @@ def extract_frame_number(file_path):
 image_files.sort(key=extract_frame_number)
 
 
-
-fov_1x = (1000, 1000)  # Field of view at 1x magnification in micrometers (width, height)
+# Define input and output parameters
+outputs_dir = sys.argv[6]  # Base output directory from command-line arguments
+fov_1x = (int(sys.argv[2]), int(sys.argv[3]))  # Field of view in micrometers
 magnification = 10  # Magnification level
 time_per_frame = 2  # Time difference between consecutive frames in seconds
-frame_interval = 2  # Number of frames to calculate growth rates
-distance_threshold = 15  # Distance threshold for tip matching
-min_size_spores = 10  # Minimum size of spores
-max_size_spores = 200  # Maximum size of spores
+frame_interval = 2  # Frame interval for growth rate calculations
+distance_threshold = 15  # Distance threshold for tip tracking
+min_size_spores = 10  # Minimum size for spores
+max_size_spores = 200  # Maximum size for spores
 circularity_threshold = 0.7  # Circularity threshold for spores
-roi = (200, 300)  # Example region of interest (y, x)
-
-import os
-import cv2
-
-# Define ROI polygon coordinates
 roi_polygon = [
-    (1000, 1000),  # Top-left corner
-    (4000, 1000),  # Top-right corner
-    (4000, 4000),  # Bottom-right corner
-    (1000, 4000)   # Bottom-left corner
-]
+    (1000, 1000), (4000, 1000), (4000, 4000), (1000, 4000)
+]  # ROI polygon coordinates
 
-# Output base folders
-base_visualization_folder = "roi_visualizations"
-hyphal_endpoints_folder = "hyphal_endpoints"
+# Create output subfolders
+csv_folder = os.path.join(outputs_dir, "csv_files")
+visuals_folder = os.path.join(outputs_dir, "visuals")
+graph_folder = os.path.join(outputs_dir, "graphs")
 
-# Ensure required folders exist
-os.makedirs(base_visualization_folder, exist_ok=True)
-os.makedirs(hyphal_endpoints_folder, exist_ok=True)
-print(f"Base folders created or already exist: {base_visualization_folder}, {hyphal_endpoints_folder}")
+os.makedirs(csv_folder, exist_ok=True)
+os.makedirs(visuals_folder, exist_ok=True)
+os.makedirs(graph_folder, exist_ok=True)
 
-# Process Image Sequence
+# Process image sequence
 tip_positions_sequence = []
 biomass_values = []
-images = []  # Collect grayscale images for visualization
-print(image_files[0])
+images = []
+
+# Sort image files
+image_files = sorted(
+    [os.path.join(folder_path, file) for file in os.listdir(folder_path) if file.endswith('.tif')],
+    key=extract_frame_number
+)
 
 for frame_idx, image_file in enumerate(image_files):
-    # Load the image
+    # Load and preprocess image
     image = cv2.imread(image_file, cv2.IMREAD_GRAYSCALE)
-    images.append(image)  # Add the grayscale image to the list
+    images.append(image)
 
-    # Preprocess and skeletonize
     binary_image = preprocess_image(image)
     skeleton = skeletonize_image(binary_image)
     filtered_skeleton = filter_hyphae(skeleton, min_size=500)
 
-    # Find and save hyphal endpoints per frame
-    endpoints = find_hyphal_endpoints(filtered_skeleton, frame_idx, output_folder=hyphal_endpoints_folder)
+    # Find and save hyphal endpoints
+    endpoints = find_hyphal_endpoints(filtered_skeleton, frame_idx, csv_folder)
     tip_positions_sequence.append(endpoints)
 
     # Calculate biomass
     biomass = find_biomass(binary_image, fov_1x, magnification)
     biomass_values.append(biomass)
 
-    print(f"Processed frame {frame_idx}")
-
-# Track hyphal tips across frames
+# Track hyphal tips
 tracked_tips = track_tips_across_frames(tip_positions_sequence, distance_threshold)
 
-# Visualize Distances to ROI
-iteration_folder = os.path.join(base_visualization_folder, f"iteration_{len(os.listdir(base_visualization_folder)) + 1}")
-os.makedirs(iteration_folder, exist_ok=True)
-print(f"Iteration folder created: {iteration_folder}")
-
-# Calculate and save distances to ROI
-tip_id = 1000  # Example tip ID
+# Visualize distances to ROI
+tip_id = 1000
 calculate_distances_to_roi_and_visualize(
-    tracked_tips, tip_id, roi_polygon, images, iteration_folder
+    tracked_tips, tip_id, roi_polygon, images, visuals_folder, csv_folder
 )
 
-# Create a folder to store the average growth rate CSV
-average_growth_rate_folder = os.path.join(base_visualization_folder, "average_growth_rates")
-os.makedirs(average_growth_rate_folder, exist_ok=True)
+# Calculate and save metrics
+calculate_average_growth_rate(tracked_tips, frame_interval, time_per_frame, csv_folder)
+calculate_growth_angles(tracked_tips, tip_id, csv_folder)
+calculate_branching_rate(tip_positions_sequence, distance_threshold, csv_folder)
 
-# Calculate Metrics
-# Average growth rates
-# Create a folder to store the average growth rate CSV
-average_growth_rate_folder = os.path.join(base_visualization_folder, "average_growth_rates")
-os.makedirs(average_growth_rate_folder, exist_ok=True)  # Ensure the folder is created
+# Biomass analysis
+calculate_biomass_over_time(image_files, fov_1x, magnification, csv_folder)
 
-# Pass the folder to the function
-average_growth_rates, general_average_growth_rate = calculate_average_growth_rate(
-    tracked_tips, frame_interval, time_per_frame, output_folder=average_growth_rate_folder
-)
-print("Average Growth Rates for Each Tip:", average_growth_rates)
-print("General Average Growth Rate:", general_average_growth_rate)
-# Create folder for growth angles output
-growth_angles_folder = os.path.join(base_visualization_folder, "growth_angles")
-os.makedirs(growth_angles_folder, exist_ok=True)
-
-# Growth angles for a specific tip
-growth_angles = calculate_growth_angles(tracked_tips, tip_id, output_folder=growth_angles_folder)
-print(f"Growth Angles for Tip {tip_id}:", growth_angles)
-
-# Create folder for branching rate output
-branching_rate_folder = os.path.join(base_visualization_folder, "branching_rate")
-os.makedirs(branching_rate_folder, exist_ok=True)
-
-# Branching rate
-branching_events_per_frame, total_branching_events = calculate_branching_rate(
-    tip_positions_sequence, distance_threshold, output_folder=branching_rate_folder
-)
-print("Branching Events Per Frame:", branching_events_per_frame)
-print("Total Branching Events:", total_branching_events)
-
-# Create folder for spore tracking output
-spore_tracking_folder = os.path.join(base_visualization_folder, "spore_tracking")
-os.makedirs(spore_tracking_folder, exist_ok=True)
-
-# Spore tracking
-spore_tracking = track_spores_over_time(
-    image_files, min_size=min_size_spores, max_size=max_size_spores,
-    circularity_threshold=circularity_threshold, distance_threshold=distance_threshold,
-)
-print("Spore Size Histories Over Time:", spore_tracking)
-
-# Biomass analysis (no additional folder needed, already saved earlier)
-print("Biomass Over Time:", biomass_values)
-
-print("Processing complete. Individual results are saved as CSV files in their respective folders.")
+print("Processing complete. Results saved in:", outputs_dir)
