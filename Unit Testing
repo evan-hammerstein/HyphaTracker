@@ -1,0 +1,147 @@
+import unittest
+from unittest.mock import patch, mock_open, MagicMock
+import os
+import numpy as np
+from scipy.ndimage import convolve
+from skimage.measure import label
+import csv
+
+# Importing the functions to test
+from your_module import (
+    save_to_csv,
+    find_hyphal_endpoints,
+    calculate_distances_to_roi_and_visualize,
+    closest_point_on_line_segment,
+    draw_dotted_line,
+    calculate_average_growth_rate,
+    calculate_growth_angles,
+    calculate_tip_size,
+    track_tip_size_over_time,
+    calculate_overall_average_tip_size,
+    calculate_branching_rate,
+    find_biomass,
+    calculate_biomass_over_time,
+)
+
+class TestFunctions(unittest.TestCase):
+    
+    def setUp(self):
+        # Setup common test data
+        self.filtered_skeleton = np.array([
+            [0, 1, 0],
+            [1, 1, 1],
+            [0, 1, 0]
+        ])
+        self.frame_idx = 1
+        self.output_folder = "test_outputs"
+        self.tracked_tips = {
+            "tip_1": [(0, 10, 10), (1, 15, 15), (2, 20, 20)],
+            "tip_2": [(0, 5, 5), (1, 8, 8), (2, 10, 10)]
+        }
+        self.roi_vertices = [(5, 5), (5, 25), (25, 25), (25, 5)]
+        self.images = [np.zeros((30, 30), dtype=np.uint8) for _ in range(3)]
+        self.binary_image = np.zeros((100, 100), dtype=np.uint8)
+        self.binary_image[40:60, 40:60] = 1
+
+    @patch("os.makedirs")
+    @patch("os.path.exists", return_value=False)
+    @patch("builtins.open", new_callable=mock_open)
+    
+    def test_save_to_csv(self, mock_open_file, mock_path_exists, mock_makedirs):
+        # Test saving data to CSV
+        data = [["Header1", "Header2"], ["Row1", "Row2"]]
+        filepath = "test_outputs/test.csv"
+        
+        save_to_csv(data, filepath)
+        
+        # Check if folder creation was called
+        mock_makedirs.assert_called_once_with(os.path.dirname(filepath))
+        
+        # Check if file was written correctly
+        mock_open_file.assert_called_once_with(filepath, mode="w", newline="")
+        handle = mock_open_file()
+        handle.write.assert_called()
+
+    @patch("os.makedirs")
+    @patch("csv.writer")
+    
+    def test_find_hyphal_endpoints(self, mock_csv_writer, mock_makedirs):
+        endpoints = find_hyphal_endpoints(self.filtered_skeleton, self.frame_idx)
+        
+        # Check if output folder was created
+        mock_makedirs.assert_called_once_with(self.output_folder)
+        
+        # Check if endpoints are detected correctly
+        expected_endpoints = [(0, 1), (2, 1)]
+        self.assertEqual(endpoints, expected_endpoints)
+
+    @patch("os.makedirs")
+    @patch("cv2.polylines")
+    @patch("cv2.circle")
+    @patch("cv2.imwrite")
+    
+    def test_calculate_distances_to_roi_and_visualize(self, mock_imwrite, mock_circle,
+                                                     mock_polylines, mock_makedirs):
+        distances = calculate_distances_to_roi_and_visualize(
+            self.tracked_tips,
+            "tip_1",
+            self.roi_vertices,
+            self.images,
+            self.output_folder
+        )
+        
+        # Check if output folders were created
+        mock_makedirs.assert_called()
+        
+        # Check if distances are calculated correctly
+        self.assertEqual(len(distances), len(self.tracked_tips["tip_1"]))
+
+    def test_closest_point_on_line_segment(self):
+        px, py = closest_point_on_line_segment(0, 0, 10, 0, 5, 5)
+        
+        # Check if closest point is calculated correctly
+        self.assertEqual((px, py), (5.0, 0.0))
+
+    def test_draw_dotted_line(self):
+        image = np.zeros((100, 100), dtype=np.uint8)
+        
+        draw_dotted_line(image=image,
+                         start=(10, 10),
+                         end=(90, 90),
+                         color=(255,),
+                         thickness=1)
+        
+        # Check if some pixels were drawn on the image
+        self.assertTrue(np.any(image > 0))
+
+    @patch("os.makedirs")
+    @patch("csv.writer")
+    
+    def test_calculate_average_growth_rate(self, mock_csv_writer, mock_makedirs):
+        avg_rates, general_avg_rate = calculate_average_growth_rate(
+            self.tracked_tips,
+            frame_interval=1,
+            time_per_frame=1.0,
+            output_folder=self.output_folder
+        )
+        
+        # Check if output folder was created
+        mock_makedirs.assert_called_once_with(self.output_folder)
+        
+        # Check if average growth rates are calculated correctly
+        self.assertIn("tip_1", avg_rates)
+    
+    def test_calculate_tip_size(self):
+        tip_size = calculate_tip_size(
+            binary_image=self.binary_image,
+            tip_position=(50, 50),
+            radius_microns=10,
+            fov_1x=(1000.0, 1000.0),
+            magnification=10.0
+        )
+        
+        # Check if calculated tip size is reasonable
+        self.assertGreater(tip_size, 0)
+
+if __name__ == "__main__":
+    unittest.main()
