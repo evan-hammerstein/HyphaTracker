@@ -798,7 +798,7 @@ def identify_spores(image, min_size, max_size, circularity_threshold):
 #NUMBER/SIZE/DISTRIBUTION OF SPORES (SPHERICAL STRUCTURES)
 from scipy.spatial.distance import cdist
 
-def track_spores_over_time(image_files, min_size=10, max_size=200, circularity_threshold=0.7, distance_threshold=15):
+def track_spores_over_time(image_files, min_size=10, max_size=200, circularity_threshold=0.7, distance_threshold=15, output_folder="csv_files"):
     """
     Track spores over time across a sequence of images and output their sizes over time.
     
@@ -807,6 +807,7 @@ def track_spores_over_time(image_files, min_size=10, max_size=200, circularity_t
     :param max_size: Maximum size of objects to consider as spores.
     :param circularity_threshold: Minimum circularity to consider an object as a spore.
     :param distance_threshold: Maximum distance to match spores between frames.
+    :param output_folder: Folder to save the resulting CSV file.
     :return: Dictionary of tracked spores with their sizes over time.
     """
 
@@ -828,7 +829,7 @@ def track_spores_over_time(image_files, min_size=10, max_size=200, circularity_t
             # Initialize tracking for the first frame
             for spore in current_spores:
                 tracked_spores[next_spore_id] = {
-                    "history": [(frame_idx, spore["size"])],
+                    "history": [(frame_idx, spore["size"], spore["center"])],
                     "last_position": spore["center"],
                 }
                 next_spore_id += 1
@@ -847,7 +848,7 @@ def track_spores_over_time(image_files, min_size=10, max_size=200, circularity_t
                 nearest_idx = np.argmin(distances[spore_id])
                 if distances[spore_id, nearest_idx] < distance_threshold:
                     # Update the spore's history and last position
-                    tracked_spores[spore_id]["history"].append((frame_idx, current_spores[nearest_idx]["size"]))
+                    tracked_spores[spore_id]["history"].append((frame_idx, current_spores[nearest_idx]["size"], current_spores[nearest_idx]["center"]))
                     tracked_spores[spore_id]["last_position"] = current_spores[nearest_idx]["center"]
                     matched_current.add(nearest_idx)
 
@@ -855,13 +856,17 @@ def track_spores_over_time(image_files, min_size=10, max_size=200, circularity_t
             for j, spore in enumerate(current_spores):
                 if j not in matched_current:
                     tracked_spores[next_spore_id] = {
-                        "history": [(frame_idx, spore["size"])],
+                        "history": [(frame_idx, spore["size"], spore["center"])],
                         "last_position": spore["center"],
                     }
                     next_spore_id += 1
     
+    # Ensure the output folder exists
+    os.makedirs(output_folder, exist_ok=True)
+    output_file = os.path.join(output_folder, "tracked_spores.csv")
+    
     # Save spore size and position histories to a CSV file
-    with open("tracked_spores.csv", mode="w", newline="") as csvfile:
+    with open(output_file, mode="w", newline="") as csvfile:
         csv_writer = csv.writer(csvfile)
         # Write header
         header = ["Spore ID", "Frame", "Size (µm²)", "Center X", "Center Y"]
@@ -922,18 +927,20 @@ def process_sequence(image_files, min_size=50, distance_threshold=15): # adjust 
     return tracked_tips
 
 # Match tips between frames and handle branching
-def track_tips_across_frames(tip_positions, distance_threshold=15):
+def track_tips_across_frames(tip_positions, distance_threshold=15, output_folder="csv_files"):
     """
     Track hyphal tips across frames, creating separate lists for new branches.
     
     :param tip_positions: List of tip positions for each frame (list of lists of (y, x) tuples).
     :param distance_threshold: Maximum distance to consider two tips as the same.
+    :param output_folder: Folder to save the resulting CSV file.
     :return: Dictionary with keys as tip IDs and values as lists of positions [(frame, y, x)].
     """
+    # Step 1: Initialize variables for tracking
     tracked_tips = {}  # Dictionary to store tip tracking {tip_id: [(frame, y, x)]}
-    next_tip_id = 0  # Unique ID for each tip (Keys of dictionary)
+    next_tip_id = 0  # Unique ID for each tip (keys of dictionary)
     
-    # Iterate over frames
+    # Step 2: Process frames
     for frame_idx, current_tips in enumerate(tip_positions):
         if frame_idx == 0:
             # Initialize tracking for the first frame
@@ -946,7 +953,7 @@ def track_tips_across_frames(tip_positions, distance_threshold=15):
         previous_tips = [positions[-1][1:] for positions in tracked_tips.values()]
         distances = cdist(previous_tips, current_tips)  # Compute distances between tips
         
-        # Match previous tips to current tips
+        # Step 3: Match tips
         matched_current = set()
         for i, prev_tip in enumerate(previous_tips):
             # Find the nearest current tip within the distance threshold
@@ -954,9 +961,6 @@ def track_tips_across_frames(tip_positions, distance_threshold=15):
             if distances[i, nearest_idx] < distance_threshold:
                 tracked_tips[i].append((frame_idx, *current_tips[nearest_idx]))
                 matched_current.add(nearest_idx)
-            else:
-                # Terminate the tip if no match is found
-                continue
 
         # Add new tips that were not matched
         for j, current_tip in enumerate(current_tips):
@@ -964,8 +968,10 @@ def track_tips_across_frames(tip_positions, distance_threshold=15):
                 tracked_tips[next_tip_id] = [(frame_idx, *current_tip)]
                 next_tip_id += 1
 
-    # Save the results to a CSV file
-    with open("tracked_tips.csv", mode="w", newline="") as csvfile:
+    # Step 4: Save the results to a CSV file
+    os.makedirs(output_folder, exist_ok=True)  # Ensure the output folder exists
+    output_file = os.path.join(output_folder, "tracked_tips.csv")
+    with open(output_file, mode="w", newline="") as csvfile:
         csv_writer = csv.writer(csvfile)
         csv_writer.writerow(["Tip ID", "Frame", "Y", "X"])  # Header row
         for tip_id, positions in tracked_tips.items():
@@ -1004,6 +1010,26 @@ def track_tips_across_frames(tip_positions, distance_threshold=15):
 # ========== Input Parameters ==========
 import os
 
+import os
+import shutil
+
+def delete_folder(folder_path):
+    """
+    Delete the specified folder and all its contents.
+    
+    :param folder_path: Path to the folder to delete.
+    """
+    if os.path.exists(folder_path):
+        try:
+            shutil.rmtree(folder_path)  # Remove the folder and all its contents
+            print(f"Deleted folder: {folder_path}")
+        except Exception as e:
+            print(f"Error deleting folder {folder_path}: {e}")
+    else:
+        print(f"Folder does not exist: {folder_path}")
+
+
+
 # Define the folder containing the images - outputs dir
 folder_path = 'C:/Users/ls2221/OneDrive - Imperial College London/Year 3/Software Engineering/Project/Proc_Ims'
 
@@ -1030,8 +1056,12 @@ image_files.sort(key=extract_frame_number)
 
 
 # Define input and output parameters
-outputs_dir = sys.argv[6]  # Base output directory from command-line arguments
-fov_1x = (int(sys.argv[2]), int(sys.argv[3]))  # Field of view in micrometers
+#outputs_dir = sys.argv[6]  # Base output directory from command-line arguments
+outputs_dir = "outputs"  # Base output directory from command-line arguments
+
+#fov_1x = (int(sys.argv[2]), int(sys.argv[3]))  # Field of view in micrometers
+fov_1x = (1000, 1000)  # Field of view in micrometers
+
 magnification = 10  # Magnification level
 time_per_frame = 2  # Time difference between consecutive frames in seconds
 frame_interval = 2  # Frame interval for growth rate calculations
