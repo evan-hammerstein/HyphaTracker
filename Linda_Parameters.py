@@ -142,7 +142,6 @@ def find_hyphal_endpoints(filtered_skeleton):
     :param skeleton: Skeletonized binary image.
     :return: List of (y, x) coordinates of detected endpoints.
     """
-
     # Define a 3x3 kernel to identify pixels with exactly one neighbor
     kernel = np.array([[1, 1, 1], 
                        [1, 10, 1], 
@@ -160,7 +159,6 @@ def find_hyphal_endpoints(filtered_skeleton):
     for y, x in endpoints:
         if labeled_skeleton[y, x] > 0:  # Check if endpoint belongs to a labeled component
             valid_endpoints.append((y, x))  # Add valid endpoint to the list
-    
     return valid_endpoints
 
 
@@ -539,15 +537,6 @@ def identify_spores(image, min_size, max_size, circularity_threshold):
             if circularity >= circularity_threshold:
                 (x, y), _ = cv2.minEnclosingCircle(contour)  # Center of spore
                 spores.append({"id": spore_id, "center": (int(x), int(y)), "size": area})
-
-    # Save the results to a CSV file
-    with open("spores_with_ids_and_locations.csv", mode="w", newline="") as csvfile:
-        csv_writer = csv.writer(csvfile)
-        csv_writer.writerow(["Spore ID", "Center X", "Center Y", "Size (µm²)"])  # Header row
-        for spore in spores:
-            csv_writer.writerow([spore["id"], spore["center"][0], spore["center"][1], spore["size"]])
-
-    print(f"Spores with IDs and locations saved to spores_with_ids_and_locations.csv")
 
     return spores
 
