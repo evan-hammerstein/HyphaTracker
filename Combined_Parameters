@@ -1188,5 +1188,3 @@ calculate_biomass_over_time(image_files, pixel_area, csv_folder, graph_folder)
 track_spores_over_time(image_files, 10, 200, 0.7, 15, csv_folder, graph_folder)
 
 print("Processing complete. Results saved in:", outputs_dir)
-
-
