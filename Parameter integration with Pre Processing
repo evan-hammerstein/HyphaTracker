@@ -1,0 +1,369 @@
+import cv2
+import tifffile as tiff
+import numpy as np
+from skimage.exposure import rescale_intensity
+from skimage.filters import threshold_otsu
+from skimage.morphology import skeletonize, remove_small_objects
+from skimage.measure import label
+from scipy.spatial.distance import cdist
+from scipy.ndimage import convolve
+import os
+from Functions import *
+import time
+import csv
+
+# Parameters and Initialization
+selected_area = None
+resizing = False
+original_img = None
+resized_img = None
+scale_factor = 1.0
+selection_done = False  # Flag to indicate selection is complete
+threshold_value = 50  # Example thresholding sensitivity
+fov_1x = (1000, 1000)  # Example field of view dimensions in micrometers
+magnification = 10  # Magnification level
+time_per_frame = 2  # Time difference between consecutive frames in seconds
+frame_interval = 2  # Number of frames to calculate growth rates
+distance_threshold = 15  # Distance threshold for tip matching
+min_size_spores = 10  # Minimum size of spores
+max_size_spores = 200  # Maximum size of spores
+circularity_threshold = 0.7  # Circularity threshold for spores
+roi = (200, 300)  # Example region of interest (y, x)
+
+
+# ========== Selection Area Handler ==========
+
+def select_area(event, x, y, flags, param):
+    global selected_area, resizing, resized_img, scale_factor, selection_done
+
+    if selection_done:  # Do not allow selection after the first frame
+        return
+
+    # Scale coordinates back to the original resolution
+    x, y = int(x / scale_factor), int(y / scale_factor)
+
+    if event == cv2.EVENT_LBUTTONDOWN:  # Start selection
+        selected_area = [x, y, x, y]
+
+    elif event == cv2.EVENT_MOUSEMOVE and selected_area:  # Update rectangle dynamically
+        selected_area[2], selected_area[3] = x, y
+
+        # Draw the rectangle dynamically on the resized image
+        temp_img = resized_img.copy()
+        x1, y1, x2, y2 = selected_area
+        cv2.rectangle(temp_img, (int(x1 * scale_factor), int(y1 * scale_factor)),
+                      (int(x2 * scale_factor), int(y2 * scale_factor)), (255, 255, 255), 2)  # Cyan outline
+        cv2.imshow("Image", temp_img)
+
+    elif event == cv2.EVENT_LBUTTONUP:  # Finalize selection
+        if selected_area:
+            selected_area = [min(selected_area[0], selected_area[2]), min(selected_area[1], selected_area[3]),
+                             max(selected_area[0], selected_area[2]), max(selected_area[1], selected_area[3])]
+            print(f"Selected area: {selected_area}")
+        selection_done = True
+
+# ========== Preprocessing and Skeletonization ==========
+
+def preprocess_image(image):
+    """
+    Preprocess the image by applying Otsu thresholding and returning a binary image.
+    """
+    threshold_value = threshold_otsu(image)
+    binary_image = (image > threshold_value).astype(np.uint8)
+    return binary_image
+
+def skeletonize_image(binary_image):
+    """
+    Skeletonize the binary image.
+    """
+    skeleton = skeletonize(binary_image)
+    return skeleton
+
+# ========== Hyphal Tip Detection ==========
+
+
+
+# ========== Main Processing Function ==========
+
+tip_positions_sequence = []
+biomass_values = []
+
+def process_frame(frame, thresholder, threshold_value):
+    # Normalize pixel values
+    if frame.max() > 255:
+        frame = (255 * (frame / frame.max())).astype(np.uint8)
+
+    # Convert to grayscale
+    if frame.ndim == 3:
+        frame = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+
+    # Apply bilateral filter
+    filtered = cv2.bilateralFilter(frame, d=15, sigmaColor=30, sigmaSpace=25)
+
+    # Apply adaptive Gaussian threshold
+    Thresholded = cv2.adaptiveThreshold(filtered, 255, thresholder, cv2.THRESH_BINARY, threshold_value, 2)
+
+    # Divide and invert
+    divide = cv2.divide(Thresholded, frame, scale=255)
+    divide = 255 - divide
+
+    # Stretch intensity
+    maxval = np.amax(divide) / 4
+    stretch = rescale_intensity(divide, in_range=(0, maxval), out_range=(0, 255)).astype(np.uint8)
+
+    # Morphological operations for cleaning
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+    cleaned = cv2.morphologyEx(stretch, cv2.MORPH_OPEN, kernel)
+    filled = cv2.morphologyEx(cleaned, cv2.MORPH_CLOSE, kernel)
+
+    return filled
+
+# ========== Main Function to Handle Frames ==========
+
+def main():
+    global original_img, resized_img, scale_factor, selected_area
+
+    Threshold_type = input("Gaussian or mean thresholding: ")
+    Sensitivity_value = int(input("Sensitivity value: "))
+
+    if Threshold_type == "Gaussian":
+        thresholder = cv2.ADAPTIVE_THRESH_MEAN_C
+    elif Threshold_type == "Mean":
+        thresholder = cv2.ADAPTIVE_THRESH_GAUSSIAN_C
+
+    # Load the TIFF file
+   # Main Function to Handle Frames
+def main():
+    global original_img, resized_img, scale_factor, selected_area
+
+    Threshold_type = input("Gaussian or mean thresholding: ")
+    Sensitivity_value = int(input("Sensitivity value: "))
+
+    if Threshold_type == "Gaussian":
+        thresholder = cv2.ADAPTIVE_THRESH_MEAN_C
+    elif Threshold_type == "Mean":
+        thresholder = cv2.ADAPTIVE_THRESH_GAUSSIAN_C
+
+    # Load the TIFF file
+    tiff_file = r"C:\Users\Harry\OneDrive - Imperial College London\Bioeng\Year 3\Software Engineering\HyphaTracker\timelapse1.tif"
+    frames = tiff.imread(tiff_file)
+
+    roi_polygon = [
+    (1625, 1032), (1827, 3045), (1897, 5848), 
+    (2614, 6323), (9328, 5879), (9875, 5354),
+    (9652, 2133), (9592, 376), (1988, 780)
+    ]
+
+
+    output_dir = r"C:\Users\Harry\OneDrive - Imperial College London\Bioeng\Year 3\Software Engineering\HyphaTracker\Processed_frames"
+    os.makedirs(output_dir, exist_ok=True)  # Create the directory if it doesn't exist
+    base_folder = r"C:\Users\Harry\OneDrive - Imperial College London\Bioeng\Year 3\Software Engineering\HyphaTracker\Visualisations"
+    os.makedirs(base_folder, exist_ok=True)  # Create the directory if it doesn't exist
+
+
+    csv_file = r"C:\Users\Harry\OneDrive - Imperial College London\Bioeng\Year 3\Software Engineering\HyphaTracker\output_metrics.csv"
+    
+    # Initialize the lists for storing tip positions and biomass values
+    tip_positions_sequence = []
+    biomass_values = []
+    
+
+
+    # Process and display each frame
+    for frame_idx, frame in enumerate(frames):
+        print(f"Processing frame {frame_idx + 1}")
+        original_img = frame.copy()
+
+        # Crop and process the selected area
+        if selected_area:
+            x1, y1, x2, y2 = selected_area
+            cropped_frame = original_img[y1:y2, x1:x2]  # Crop the frame
+            processed_frame = process_frame(cropped_frame, thresholder, Sensitivity_value)
+        else:
+            processed_frame = process_frame(original_img, thresholder, Sensitivity_value)
+
+        # Prepare resized frame for display
+        height, width = processed_frame.shape[:2]
+        scale_factor = 800 / width  # Resize width to 800 pixels
+        resized_img = cv2.resize(processed_frame, (800, int(height * scale_factor)))
+
+        # Display the first frame for selection
+        if frame_idx == 0 and not selection_done:
+            cv2.imshow("Image", resized_img)
+            cv2.setMouseCallback("Image", select_area)
+            print("Select the area on the first frame and press any key to continue.")
+            key = cv2.waitKey(0)  # Wait for the user to finish selection
+            if key == 27:  # Esc key to exit
+                print("Exiting...")
+                break
+
+      
+        if selected_area:
+            temp_img = resized_img.copy()
+            x1, y1, x2, y2 = selected_area
+            cv2.rectangle(temp_img, (int(x1 * scale_factor), int(y1 * scale_factor)),
+                          (int(x2 * scale_factor), int(y2 * scale_factor)), (0, 255, 255), 2)  
+            cv2.imshow("Image", temp_img)
+        else:
+           cv2.imshow("Image", resized_img)
+
+        # Process the skeletonized image and analyze hyphal tips
+        skeleton = skeletonize_image(processed_frame)  # Skeletonize the cropped frame
+        filtered_skeleton = filter_hyphae(skeleton)  # Filter the skeleton
+
+        # Detect endpoints (hyphal tips) after cropping
+        endpoints = find_hyphal_endpoints(filtered_skeleton)
+        tip_positions_sequence.append(endpoints)  # Store the tip positions for the current frame
+        tip_count = len(endpoints)  # Count the number of hyphal tips
+       
+
+
+        # Calculate biomass for the current frame (after cropping)
+        biomass = find_biomass(resized_img, fov_1x, magnification)
+        biomass_values.append(biomass)
+
+        # Track the tips across frames (if needed)
+        tracked_tips = track_tips_across_frames(tip_positions_sequence, distance_threshold)
+       # visualize_tracked_tips(tracked_tips, processed_frame, frame_idx)
+        
+        # Display the analysis results for the current frame
+        print(f"Frame {frame_idx + 1}:")
+        print(f"  Hyphal Tip Count: {tip_count}")
+        print(f"  Biomass Area: {biomass} square micrometers")
+
+        
+        # Save each processed frame with a unique name
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
+        output_frame_path = os.path.join(output_dir, f"processed_frame_{frame_idx + 1}_{timestamp}.tif")
+        tiff.imwrite(output_frame_path, processed_frame)
+        print(f"Saved processed frame {frame_idx + 1} to {output_frame_path}")
+
+
+        # Wait for user input to proceed
+        #key = cv2.waitKey(0)
+        if key == 27:  # Esc key to exit
+            print("Exiting...")
+            break
+        elif key == ord('s'):  # Save the processed frame
+            output_file = f"processed_frame_{frame_idx + 1}.png"
+            cv2.imwrite(output_file, processed_frame)
+            print(f"Saved processed frame {frame_idx + 1} as {output_file}.")
+
+    # Cleanup
+    cv2.destroyAllWindows()
+
+    # ========== Visualize Distances to ROI ==========
+    # Create a new subfolder for the current iteration
+    #iteration_folder = os.path.join(base_folder, f"iteration_{len(os.listdir(base_folder)) + 1}")
+    #os.makedirs(iteration_folder)
+    #print(f"Iteration folder created: {iteration_folder}")
+
+    # Visualize distances to ROI and calculate distances
+    tip_id = 1000  # Example tip ID
+    #distances_to_roi = calculate_distances_to_roi_and_visualize(tracked_tips, tip_id, roi_polygon, output_dir, base_folder  )
+    #distances_to_roi = [f"{distance:.3g} µm" for distance in distances_to_roi]
+    #print(f"Distances of Tip {tip_id} to ROI:", distances_to_roi)
+
+    # ========== Calculate Metrics ==========
+    # Calculate average growth rates for each tip
+    average_growth_rates, general_average_growth_rate = calculate_average_growth_rate(
+        tracked_tips, frame_interval, time_per_frame
+    )
+    average_growth_rates = {tip_id: f"{rate:.3g} µm/s" for tip_id, rate in average_growth_rates.items()}
+    general_average_growth_rate = f"{general_average_growth_rate:.3g} µm/s"
+    print("Average Growth Rates for Each Tip:", average_growth_rates)
+    print("General Average Growth Rate:", general_average_growth_rate)
+
+    # Calculate growth angles for a specific tip
+    growth_angles = calculate_growth_angles(tracked_tips, tip_id)
+    growth_angles = [f"{angle:.3g}°" for angle in growth_angles]
+    print(f"Growth Angles for Tip {tip_id}:", growth_angles)
+
+    # Calculate branching rate
+    branching_events_per_frame, total_branching_events = calculate_branching_rate(
+        tip_positions_sequence, distance_threshold
+    )
+    branching_events_per_frame = [f"{event:.3g}" for event in branching_events_per_frame]
+    total_branching_events = f"{total_branching_events:.3g}"
+    print("Branching Events Per Frame:", branching_events_per_frame)
+    print("Total Branching Events:", total_branching_events)
+
+    # Collect all `.tif` file paths from the folder
+    image_files = [
+        os.path.join(output_dir, file) 
+        for file in os.listdir(output_dir) 
+        if file.endswith('.tif')
+    ]
+
+    # Track spores and format sizes
+    spore_tracking = track_spores_over_time(
+        image_files, min_size=min_size_spores, max_size=max_size_spores,
+        circularity_threshold=circularity_threshold, distance_threshold=distance_threshold
+    )
+    formatted_spore_tracking = {
+        spore_id: [f"{size:.3g} µm²" for size in sizes]
+        for spore_id, sizes in spore_tracking.items()
+    }
+    print("Spore Size Histories Over Time:", formatted_spore_tracking)
+
+    # Biomass analysis
+    biomass_values = [f"{biomass:.3g} µm²" for biomass in biomass_values]
+    print("Biomass Over Time:", biomass_values)
+
+    # ========== Prepare CSV Data ==========
+    csv_data = []
+
+    # Average growth rates
+    csv_data.append(["Tip ID", "Average Growth Rate (µm/s)"])
+    for tip_id, rate in average_growth_rates.items():
+        csv_data.append([tip_id, rate])
+
+    # General average growth rate
+    csv_data.append([])
+    csv_data.append(["General Average Growth Rate", general_average_growth_rate])
+
+    # Distances to ROI
+    #csv_data.append([])
+   # csv_data.append(["Frame", "Distance to ROI (µm)"])
+    #for frame_idx, distance in enumerate(distances_to_roi):
+     #   csv_data.append([frame_idx, distance])
+
+    # Growth angles
+    csv_data.append([])
+    csv_data.append(["Frame", "Growth Angle (°)"])
+    for frame_idx, angle in enumerate(growth_angles):
+        csv_data.append([frame_idx, angle])
+
+    # Branching events
+    csv_data.append([])
+    csv_data.append(["Frame", "Branching Events"])
+    for frame_idx, events in enumerate(branching_events_per_frame):
+        csv_data.append([frame_idx, events])
+    csv_data.append(["Total Branching Events", total_branching_events])
+
+    # Spore tracking
+    csv_data.append([])
+    csv_data.append(["Spore ID", "Sizes Over Time (µm²)"])
+    for spore_id, sizes in formatted_spore_tracking.items():
+        csv_data.append([spore_id, ", ".join(sizes)])
+
+    # Biomass values
+    csv_data.append([])
+    csv_data.append(["Frame", "Biomass (µm²)"])
+    for frame_idx, biomass in enumerate(biomass_values):
+        csv_data.append([frame_idx, biomass])
+
+    # Write to CSV file
+    with open(csv_file, mode="w", newline="") as file:
+        writer = csv.writer(file)
+        writer.writerows(csv_data)
+
+    print(f"Data successfully exported to {csv_file}")
+
+
+
+
+
+# Run the script
+if __name__ == "__main__":
+    main()
