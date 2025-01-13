@@ -267,6 +267,7 @@ def find_hyphal_endpoints(filtered_skeleton, frame_idx, output_folder="csv_files
 
 #DISTANCE TO REGIONS OF INTEREST
 # Example: Regions of interest (e.g., spore centroids)
+
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # ADD VALUE FROM GUI HERE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -389,12 +390,6 @@ def draw_dotted_line(image, start, end, color, thickness=1, gap=5):
 # ========== HYPHAL METRICS ==========
 
 
-
-
-
-
-
-
 #TIP GROWTH RATE
 def calculate_average_growth_rate(tracked_tips, frame_interval, time_per_frame, output_folder = "csv_files"):
     """
@@ -454,8 +449,6 @@ def calculate_average_growth_rate(tracked_tips, frame_interval, time_per_frame, 
     return average_growth_rates, general_average_growth_rate
 
 
-
-
 #TIP GROWTH ANGLE
 
 def calculate_growth_angles(tracked_tips, tip_id, output_folder = "csv_files"):
@@ -502,7 +495,6 @@ def calculate_growth_angles(tracked_tips, tip_id, output_folder = "csv_files"):
 
 
 
-
 def calculate_tip_size(binary_image, tip_position, radius_microns=10, fov_1x=(1000, 1000), magnification=10):
     """
     Calculate the size of a single tip by counting the filled pixels within a specified radius.
@@ -543,8 +535,6 @@ def calculate_tip_size(binary_image, tip_position, radius_microns=10, fov_1x=(10
     tip_size = tip_pixels * pixel_area
     return tip_size
 
-import os
-import csv
 
 def track_tip_size_over_time(tracked_tips, binary_images, tip_id, radius_microns=10, output_folder="csv_files"):
     """
@@ -627,8 +617,6 @@ def calculate_overall_average_tip_size(tracked_tips, binary_images, radius_micro
 
     print(f"Overall average tip size saved to {csv_file}")
     return overall_average_size
-
-
 
 
 #============ BRANCHING FREQUENCY ===============
@@ -760,9 +748,6 @@ def calculate_biomass_over_time(image_files, fov_1x, magnification, output_folde
     return [value[1] for value in biomass_values]
 
 
-
-
-
 # ==========SPORES===========
 
 def identify_spores(image, min_size, max_size, circularity_threshold):
@@ -790,7 +775,6 @@ def identify_spores(image, min_size, max_size, circularity_threshold):
                 spores.append({"center": (int(x), int(y)), "size": area})
 
     return spores
-
 
 
 #NUMBER/SIZE/DISTRIBUTION OF SPORES (SPHERICAL STRUCTURES)
@@ -885,11 +869,6 @@ def track_spores_over_time(image_files, min_size=10, max_size=200, circularity_t
     return spore_size_histories
 
 
-
-
-
-
-
 # ========== SEQUENCE PROCESSING ==========
 
 # Process a sequence of images and track tips
@@ -981,7 +960,6 @@ def track_tips_across_frames(tip_positions, distance_threshold=15, output_folder
 
 
 
-
 # ========== MAKE GRAPHS ==========
 
 # Plotting the growth rate
@@ -999,10 +977,6 @@ def track_tips_across_frames(tip_positions, distance_threshold=15, output_folder
 # Plotting the spore nummber
 
 # Plotting the spore size
-
-
-
-
 
 
 
