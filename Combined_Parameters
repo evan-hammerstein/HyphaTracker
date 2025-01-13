@@ -278,7 +278,7 @@ import cv2
 import numpy as np
 import csv
 
-def calculate_distances_to_roi_and_visualize(tracked_tips, tip_id, roi_vertices, images, visuals_folder, csv_folder):
+def calculate_distances_to_roi_and_visualize(tracked_tips, tip_id, roi_vertices, images, visuals_folder, output_folder):
     """
     Calculate the distances of a specific hyphal tip to a rectangular region of interest (ROI) and create visualizations.
 
@@ -286,8 +286,8 @@ def calculate_distances_to_roi_and_visualize(tracked_tips, tip_id, roi_vertices,
     :param tip_id: The ID of the tip for which distances should be calculated.
     :param roi_vertices: List of exactly 4 vertices [(x1, y1), (x2, y2), (x3, y3), (x4, y4)] defining the rectangle ROI.
     :param images: List of images corresponding to each frame.
-    :param visuals_folder: Pre-existing folder path to store visualizations.
-    :param csv_folder: Pre-existing folder path to store CSV data.
+    :param visuals_folder: Folder path to store visualizations.
+    :param output_folder: Folder path to store CSV data.
     :return: List of distances to the ROI for the specified tip over all frames.
     """
     if tip_id not in tracked_tips:
@@ -296,14 +296,14 @@ def calculate_distances_to_roi_and_visualize(tracked_tips, tip_id, roi_vertices,
     if len(roi_vertices) != 4:
         raise ValueError("ROI must be defined by exactly 4 vertices.")
 
-    # Ensure the folders exist (if already exist, this is a no-op)
+    # Ensure folders exist
     os.makedirs(visuals_folder, exist_ok=True)
-    os.makedirs(csv_folder, exist_ok=True)
+    os.makedirs(output_folder, exist_ok=True)
 
     distances = []
     visualization_data = [["Frame", "Shortest Distance to ROI (µm)"]]
 
-    # Create the polygon from the vertices
+    # Create the polygon as a flat NumPy array of shape (N, 2)
     roi_polygon = np.array(roi_vertices, dtype=np.int32)
 
     for frame_idx, (frame, y_tip, x_tip) in enumerate(tracked_tips[tip_id]):
@@ -312,52 +312,62 @@ def calculate_distances_to_roi_and_visualize(tracked_tips, tip_id, roi_vertices,
 
         # Get the corresponding grayscale image for the frame
         image = images[frame_idx]
-        
+
         # Convert the image to RGB for visualization
         visualized_image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
-        
+
         # Highlight the ROI in yellow
         cv2.polylines(visualized_image, [roi_polygon], isClosed=True, color=(0, 255, 255), thickness=2)
-        
+
         # Highlight the tip in red
         cv2.circle(visualized_image, (x_tip, y_tip), radius=5, color=(0, 0, 255), thickness=-1)
-        
-        # Calculate the shortest distance from the tip to the ROI
-        shortest_distance = float('inf')
-        closest_point = None
-        for i in range(len(roi_vertices)):
-            # Get consecutive points in the polygon
-            x1, y1 = roi_vertices[i]
-            x2, y2 = roi_vertices[(i + 1) % len(roi_vertices)]  # Wrap around to the first point
-            
-            # Compute the closest point on the line segment to the tip
-            px, py = closest_point_on_line_segment(x1, y1, x2, y2, x_tip, y_tip)
-            distance = np.sqrt((px - x_tip) ** 2 + (py - y_tip) ** 2)
-            if distance < shortest_distance:
-                shortest_distance = distance
-                closest_point = (px, py)
-        
-        distances.append(shortest_distance)
-        visualization_data.append([frame_idx, f"{shortest_distance:.3f}"])
+
+        # Convert tip position to float for `pointPolygonTest`
+        tip_point = (float(x_tip), float(y_tip))
+
+        # Check if the tip is inside the ROI
+        point_in_roi = cv2.pointPolygonTest(roi_polygon, tip_point, False)
+        if point_in_roi >= 0:
+            distances.append(0)
+            visualization_data.append([frame_idx, "0"])
+        else:
+            # Calculate the shortest distance from the tip to the ROI
+            shortest_distance = float('inf')
+            closest_point = None
+            for i in range(len(roi_vertices)):
+                # Get consecutive points in the polygon
+                x1, y1 = roi_vertices[i]
+                x2, y2 = roi_vertices[(i + 1) % len(roi_vertices)]  # Wrap around to the first point
+
+                # Compute the closest point on the line segment to the tip
+                px, py = closest_point_on_line_segment(x1, y1, x2, y2, x_tip, y_tip)
+                distance = np.sqrt((px - x_tip) ** 2 + (py - y_tip) ** 2)
+                if distance < shortest_distance:
+                    shortest_distance = distance
+                    closest_point = (px, py)
+
+            distances.append(shortest_distance)
+            visualization_data.append([frame_idx, f"{shortest_distance:.3f}"])
 
         # Draw the dotted line between the tip and the closest point on the ROI
         if closest_point:
             px, py = closest_point
             draw_dotted_line(visualized_image, (x_tip, y_tip), (int(px), int(py)), color=(255, 255, 255))
-        
+
         # Save the visualization
         output_path = os.path.join(visuals_folder, f"tip_{tip_id}_frame_{frame_idx}.png")
         cv2.imwrite(output_path, visualized_image)
 
     # Save distances to a CSV file
-    csv_file_path = os.path.join(csv_folder, f"distances_to_roi_tip_{tip_id}.csv")
+    csv_file_path = os.path.join(output_folder, f"distances_to_roi_tip_{tip_id}.csv")
     with open(csv_file_path, mode="w", newline="") as csvfile:
         csv_writer = csv.writer(csvfile)
         csv_writer.writerows(visualization_data)
-    
+
     print(f"Distances to ROI for Tip {tip_id} saved to {csv_file_path} and visualizations saved in {visuals_folder}.")
 
     return distances
+
 
 
 # Define helper functions
@@ -391,7 +401,7 @@ def draw_dotted_line(image, start, end, color, thickness=1, gap=5):
 
 
 #TIP GROWTH RATE
-def calculate_average_growth_rate(tracked_tips, frame_interval, time_per_frame, output_folder = "csv_files"):
+def calculate_average_growth_rate(tracked_tips, frame_interval, time_per_frame, output_folder = "csv_files", graph_folder = "graphs"):
     """
     Calculate the average growth rate of hyphal tips over a specified number of frames.
     
@@ -405,6 +415,10 @@ def calculate_average_growth_rate(tracked_tips, frame_interval, time_per_frame, 
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
         print(f"Output folder created: {output_folder}")
+
+    if not os.path.exists(graph_folder):
+        os.makedirs(graph_folder)
+        print(f"Output folder created: {graph_folder}")
 
     average_growth_rates = {}
     total_growth_rates = []  # To store growth rates for all tips
@@ -446,12 +460,26 @@ def calculate_average_growth_rate(tracked_tips, frame_interval, time_per_frame, 
     save_to_csv(growth_rate_data, os.path.join(output_folder, "average_growth_rates.csv"))
     print("Average growth rates saved to CSV.")
 
+    # Plot and save growth rate graph
+    plt.figure(figsize=(10, 6))
+    plt.bar(average_growth_rates.keys(), average_growth_rates.values(), color='blue')
+    plt.xlabel("Tip ID")
+    plt.ylabel("Average Growth Rate (µm/s)")
+    plt.title("Average Growth Rate of Hyphal Tips")
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+
+    graph_path = os.path.join(graph_folder, "average_growth_rates.png")
+    plt.savefig(graph_path)
+    plt.close()
+    print(f"Growth rate graph saved to {graph_path}")
+
     return average_growth_rates, general_average_growth_rate
 
 
 #TIP GROWTH ANGLE
 
-def calculate_growth_angles(tracked_tips, tip_id, output_folder = "csv_files"):
+def calculate_growth_angles(tracked_tips, tip_id, output_folder = "csv_files", graph_folder = "graphs"):
     """
     Calculate the growth angles of a specific hyphal tip over time with respect to the horizontal.
 
@@ -466,6 +494,10 @@ def calculate_growth_angles(tracked_tips, tip_id, output_folder = "csv_files"):
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
         print(f"Output folder created: {output_folder}")
+
+    if not os.path.exists(graph_folder):
+        os.makedirs(graph_folder)
+        print(f"Output folder created: {graph_folder}")
 
     positions = tracked_tips[tip_id]  # Get the positions of the specified tip
     growth_angles = []  # List to store growth angles
@@ -490,6 +522,21 @@ def calculate_growth_angles(tracked_tips, tip_id, output_folder = "csv_files"):
 
     save_to_csv(growth_angle_data, os.path.join(output_folder, f"growth_angles_tip_{tip_id}.csv"))
     print(f"Growth angles for Tip {tip_id} saved to CSV.")
+
+    # Plot and save growth angle graph
+    plt.figure(figsize=(10, 6))
+    plt.plot(range(1, len(growth_angles) + 1), growth_angles, marker='o', color='blue', label=f"Tip {tip_id}")
+    plt.xlabel("Frame")
+    plt.ylabel("Growth Angle (°)")
+    plt.title(f"Growth Angles of Tip {tip_id} Over Frames")
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+
+    graph_path = os.path.join(graph_folder, f"growth_angles_tip_{tip_id}.png")
+    plt.savefig(graph_path)
+    plt.close()
+    print(f"Growth angle graph for Tip {tip_id} saved to {graph_path}")
 
     return growth_angles
 
@@ -536,7 +583,7 @@ def calculate_tip_size(binary_image, tip_position, radius_microns=10, fov_1x=(10
     return tip_size
 
 
-def track_tip_size_over_time(tracked_tips, binary_images, tip_id, radius_microns=10, output_folder="csv_files"):
+def track_tip_size_over_time(tracked_tips, binary_images, tip_id, radius_microns=10, output_folder="csv_files", graph_folder="graphs"):
     """
     Track the size of a specific tip over time across multiple frames and save the results to a CSV file.
 
@@ -551,6 +598,10 @@ def track_tip_size_over_time(tracked_tips, binary_images, tip_id, radius_microns
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
         print(f"Output folder created: {output_folder}")
+    
+    if not os.path.exists(graph_folder):
+        os.makedirs(graph_folder)
+        print(f"Output folder created: {graph_folder}")
 
     if tip_id not in tracked_tips:
         raise ValueError(f"Tip ID {tip_id} not found in tracked tips.")
@@ -574,6 +625,25 @@ def track_tip_size_over_time(tracked_tips, binary_images, tip_id, radius_microns
         csv_writer.writerows(tip_sizes)  # Write data rows
 
     print(f"Tip sizes saved to {csv_file}")
+
+    # Plot and save the tip size graph
+    frames = [entry[0] for entry in tip_sizes]
+    sizes = [entry[1] for entry in tip_sizes]
+
+    plt.figure(figsize=(10, 6))
+    plt.plot(frames, sizes, marker='o', color='green', label=f"Tip {tip_id}")
+    plt.xlabel("Frame")
+    plt.ylabel("Tip Size (µm²)")
+    plt.title(f"Tip Size of Tip {tip_id} Over Frames")
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+
+    graph_path = os.path.join(graph_folder, f"tip_size_tip_{tip_id}.png")
+    plt.savefig(graph_path)
+    plt.close()
+    print(f"Tip size graph for Tip {tip_id} saved to {graph_path}")
+
     return tip_sizes
 
 
@@ -624,7 +694,7 @@ import os
 import csv
 from scipy.spatial.distance import cdist
 
-def calculate_branching_rate(tip_positions, distance_threshold=15, output_folder="csv_files"):
+def calculate_branching_rate(tip_positions, distance_threshold=15, output_folder="csv_files", graph_folder="graphs"):
     """
     Calculate the branching rate/frequency of fungal hyphae over time and save to a CSV file.
 
@@ -637,6 +707,10 @@ def calculate_branching_rate(tip_positions, distance_threshold=15, output_folder
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
         print(f"Output folder created: {output_folder}")
+
+    if not os.path.exists(graph_folder):
+        os.makedirs(graph_folder)
+        print(f"Output folder created: {graph_folder}")
 
     branching_events_per_frame = []  # List to store branching events for each frame
     total_branching_events = 0  # Total number of branching events
@@ -676,6 +750,20 @@ def calculate_branching_rate(tip_positions, distance_threshold=15, output_folder
         csv_writer.writerow(["Total Branching Events", total_branching_events])
 
     print(f"Branching rate saved to {csv_file}")
+
+    plt.figure(figsize=(10, 6))
+    plt.plot(range(1, len(branching_events_per_frame) + 1), branching_events_per_frame, marker='o', label="Branching Events")
+    plt.title("Branching Events Per Frame")
+    plt.xlabel("Frame")
+    plt.ylabel("Branching Events")
+    plt.legend()
+    plt.grid()
+    plt.savefig(os.path.join(graph_folder, "branching_rate_graph.png"))
+    plt.close()
+
+    print(f"Branching rate saved to {graph_folder}")
+
+
     return branching_events_per_frame, total_branching_events
 
 
@@ -711,7 +799,7 @@ def find_biomass(binary_image, fov_1x, magnification):
     return biomass_area
 
 
-def calculate_biomass_over_time(image_files, fov_1x, magnification, output_folder="csv_files"):
+def calculate_biomass_over_time(image_files, fov_1x, magnification, output_folder="csv_files", graph_folder="graphs"):
     """
     Calculate biomass over time for a sequence of images and save to a CSV file.
 
@@ -725,6 +813,10 @@ def calculate_biomass_over_time(image_files, fov_1x, magnification, output_folde
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
         print(f"Output folder created: {output_folder}")
+
+    if not os.path.exists(graph_folder):
+        os.makedirs(graph_folder)
+        print(f"Output folder created: {graph_folder}")
 
     biomass_values = []
 
@@ -745,6 +837,20 @@ def calculate_biomass_over_time(image_files, fov_1x, magnification, output_folde
         csv_writer.writerows(biomass_values)  # Write data rows
 
     print(f"Biomass over time saved to {csv_file}")
+
+    plt.figure(figsize=(10, 6))
+    frames, biomass = zip(*biomass_values)
+    plt.plot(frames, biomass, marker='o', label="Biomass")
+    plt.title("Biomass Over Time")
+    plt.xlabel("Frame")
+    plt.ylabel("Biomass (µm²)")
+    plt.legend()
+    plt.grid()
+    plt.savefig(os.path.join(graph_folder, "biomass_graph.png"))
+    plt.close()
+
+    print(f"Biomass over time saved to {graph_folder}")
+
     return [value[1] for value in biomass_values]
 
 
@@ -780,7 +886,7 @@ def identify_spores(image, min_size, max_size, circularity_threshold):
 #NUMBER/SIZE/DISTRIBUTION OF SPORES (SPHERICAL STRUCTURES)
 from scipy.spatial.distance import cdist
 
-def track_spores_over_time(image_files, min_size=10, max_size=200, circularity_threshold=0.7, distance_threshold=15, output_folder="csv_files"):
+def track_spores_over_time(image_files, min_size=10, max_size=200, circularity_threshold=0.7, distance_threshold=15, output_folder="csv_files", graph_folder="graphs"):
     """
     Track spores over time across a sequence of images and output their sizes over time.
     
@@ -796,10 +902,17 @@ def track_spores_over_time(image_files, min_size=10, max_size=200, circularity_t
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
         print(f"Output folder created: {output_folder}")
+    
+    if not os.path.exists(graph_folder):
+        os.makedirs(graph_folder)
+        print(f"Output folder created: {graph_folder}")
 
     # Dictionary to store tracked spores: {spore_id: {"history": [(frame_idx, size)], "last_position": (x, y)}}
     tracked_spores = {}
     next_spore_id = 0
+
+    spore_count_per_frame = []  # Store the number of spores detected per frame
+    average_spore_size_per_frame = []  # Store the average spore size per frame
 
     # Process each frame
     for frame_idx, file in enumerate(image_files):
@@ -811,11 +924,21 @@ def track_spores_over_time(image_files, min_size=10, max_size=200, circularity_t
         # Identify spores in the current frame
         current_spores = identify_spores(image, min_size, max_size, circularity_threshold)
 
+        # Update spore count and average size
+        spore_count = len(current_spores)
+        spore_count_per_frame.append((frame_idx, spore_count))
+
+        if spore_count > 0:
+            average_size = sum(spore["size"] for spore in current_spores) / spore_count
+        else:
+            average_size = 0
+        average_spore_size_per_frame.append((frame_idx, average_size))
+
         if frame_idx == 0:
             # Initialize tracking for the first frame
             for spore in current_spores:
                 tracked_spores[next_spore_id] = {
-                    "history": [(frame_idx, spore["size"], spore["center"])],
+                    "history": [(frame_idx, spore["size"])],
                     "last_position": spore["center"],
                 }
                 next_spore_id += 1
@@ -834,7 +957,7 @@ def track_spores_over_time(image_files, min_size=10, max_size=200, circularity_t
                 nearest_idx = np.argmin(distances[spore_id])
                 if distances[spore_id, nearest_idx] < distance_threshold:
                     # Update the spore's history and last position
-                    tracked_spores[spore_id]["history"].append((frame_idx, current_spores[nearest_idx]["size"], current_spores[nearest_idx]["center"]))
+                    tracked_spores[spore_id]["history"].append((frame_idx, current_spores[nearest_idx]["size"]))
                     tracked_spores[spore_id]["last_position"] = current_spores[nearest_idx]["center"]
                     matched_current.add(nearest_idx)
 
@@ -842,31 +965,52 @@ def track_spores_over_time(image_files, min_size=10, max_size=200, circularity_t
             for j, spore in enumerate(current_spores):
                 if j not in matched_current:
                     tracked_spores[next_spore_id] = {
-                        "history": [(frame_idx, spore["size"], spore["center"])],
+                        "history": [(frame_idx, spore["size"])],
                         "last_position": spore["center"],
                     }
                     next_spore_id += 1
-    
-    # Ensure the output folder exists
-    output_file = os.path.join(output_folder, "tracked_spores.csv")
-    
-    # Save spore size and position histories to a CSV file
-    with open(output_file, mode="w", newline="") as csvfile:
+
+    # Save spore count and average size data to CSV
+    spore_count_csv = os.path.join(output_folder, "spore_count_per_frame.csv")
+    with open(spore_count_csv, mode="w", newline="") as csvfile:
         csv_writer = csv.writer(csvfile)
-        # Write header
-        header = ["Spore ID", "Frame", "Size (µm²)", "Center X", "Center Y"]
-        csv_writer.writerow(header)
+        csv_writer.writerow(["Frame", "Spore Count"])  # Header row
+        csv_writer.writerows(spore_count_per_frame)  # Write data rows
 
-        # Write spore data
-        for spore_id, data in tracked_spores.items():
-            for frame_idx, size, center in data["history"]:
-                csv_writer.writerow([spore_id, frame_idx, size, center[0], center[1]])
-    
-    print("Spore data saved to CSV")
+    average_spore_size_csv = os.path.join(output_folder, "average_spore_size_per_frame.csv")
+    with open(average_spore_size_csv, mode="w", newline="") as csvfile:
+        csv_writer = csv.writer(csvfile)
+        csv_writer.writerow(["Frame", "Average Spore Size (µm²)"])  # Header row
+        csv_writer.writerows(average_spore_size_per_frame)  # Write data rows
 
-    # Extract the size history for each spore
-    spore_size_histories = {spore_id: [entry[1] for entry in data["history"]] for spore_id, data in tracked_spores.items()}
-    return spore_size_histories
+    # Create graphs
+    frames, spore_counts = zip(*spore_count_per_frame)
+    _, average_sizes = zip(*average_spore_size_per_frame)
+
+    # Spore Count Graph
+    plt.figure(figsize=(10, 6))
+    plt.bar(frames, spore_counts, color='blue', alpha=0.7, label="Spore Count")
+    plt.title("Spore Count Per Frame")
+    plt.xlabel("Frame")
+    plt.ylabel("Spore Count")
+    plt.grid(axis='y')
+    plt.legend()
+    plt.savefig(os.path.join(graph_folder, "spore_count_graph.png"))
+    plt.close()
+
+    # Average Spore Size Graph
+    plt.figure(figsize=(10, 6))
+    plt.plot(frames, average_sizes, marker='o', color='green', label="Average Spore Size")
+    plt.title("Average Spore Size Per Frame")
+    plt.xlabel("Frame")
+    plt.ylabel("Average Spore Size (µm²)")
+    plt.grid()
+    plt.legend()
+    plt.savefig(os.path.join(graph_folder, "average_spore_size_graph.png"))
+    plt.close()
+
+    print(f"Spore count and size saved to CSV, and graphs saved to {graph_folder}.")
+    return tracked_spores
 
 
 # ========== SEQUENCE PROCESSING ==========
@@ -1094,13 +1238,13 @@ calculate_distances_to_roi_and_visualize(
 )
 
 # Calculate and save metrics
-calculate_average_growth_rate(tracked_tips, frame_interval, time_per_frame, csv_folder)
-calculate_growth_angles(tracked_tips, tip_id, csv_folder)
-calculate_branching_rate(tip_positions_sequence, distance_threshold, csv_folder)
+calculate_average_growth_rate(tracked_tips, frame_interval, time_per_frame, csv_folder, graph_folder)
+calculate_growth_angles(tracked_tips, tip_id, csv_folder, graph_folder)
+calculate_branching_rate(tip_positions_sequence, distance_threshold, csv_folder, graph_folder)
 
 # Biomass analysis
-calculate_biomass_over_time(image_files, fov_1x, magnification, csv_folder)
+calculate_biomass_over_time(image_files, fov_1x, magnification, csv_folder, graph_folder)
 
-track_spores_over_time(image_files, 10, 200, 0.7, 15, csv_folder)
+track_spores_over_time(image_files, 10, 200, 0.7, 15, csv_folder, graph_folder)
 
 print("Processing complete. Results saved in:", outputs_dir)
