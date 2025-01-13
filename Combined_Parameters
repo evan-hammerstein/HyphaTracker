@@ -507,30 +507,16 @@ def calculate_growth_angles(tracked_tips, tip_id, output_folder = "csv_files", g
     return growth_angles
 
 
-def calculate_tip_size(binary_image, tip_position, radius_microns=10, fov_1x=(1000, 1000), magnification=10):
+def calculate_tip_size(binary_image, tip_position, pixel_area, radius_microns=10):
     """
     Calculate the size of a single tip by counting the filled pixels within a specified radius.
 
     :param binary_image: Binary image as a NumPy array (1 for foreground, 0 for background).
     :param tip_position: Tuple (y, x) representing the position of the tip.
     :param radius_microns: Radius around the tip in microns.
-    :param fov_1x: Field of View at 1x magnification (width, height) in micrometers.
-    :param magnification: Magnification level of the image.
+    :param pixel_area: Area per pixel in micrometers squared
     :return: Tip size in µm².
     """
-    # Image dimensions
-    image_height, image_width = binary_image.shape
-
-    # Calculate the FOV at the given magnification
-    fov_width = fov_1x[0] / magnification  # µm
-    fov_height = fov_1x[1] / magnification  # µm
-
-    # Calculate pixel dimensions
-    pixel_width = fov_width / image_width  # µm per pixel
-    pixel_height = fov_height / image_height  # µm per pixel
-
-    # Calculate pixel area in micrometers squared
-    pixel_area = pixel_width * pixel_height  # µm² per pixel
 
     y, x = tip_position
     radius_pixels = int(np.sqrt(radius_microns**2 / pixel_area))  # Convert radius from microns to pixels
@@ -548,7 +534,7 @@ def calculate_tip_size(binary_image, tip_position, radius_microns=10, fov_1x=(10
     return tip_size
 
 
-def track_tip_size_over_time(tracked_tips, binary_images, tip_id, radius_microns=10, output_folder="csv_files", graph_folder="graphs"):
+def track_tip_size_over_time(tracked_tips, binary_images, tip_id, pixel_area, radius_microns=10, output_folder="csv_files", graph_folder="graphs"):
     """
     Track the size of a specific tip over time across multiple frames and save the results to a CSV file.
 
@@ -579,7 +565,7 @@ def track_tip_size_over_time(tracked_tips, binary_images, tip_id, radius_microns
         binary_image = binary_images[frame]
 
         # Calculate the size of the tip in the current frame
-        tip_size = calculate_tip_size(binary_image, (y, x), radius_microns)
+        tip_size = calculate_tip_size(binary_image, (y, x), radius_microns, pixel_area)
         tip_sizes.append((frame, tip_size))
 
     # Save the results to a CSV file
@@ -612,7 +598,7 @@ def track_tip_size_over_time(tracked_tips, binary_images, tip_id, radius_microns
     return tip_sizes
 
 
-def calculate_overall_average_tip_size(tracked_tips, binary_images, radius_microns=10, output_folder="csv_files"):
+def calculate_overall_average_tip_size(tracked_tips, binary_images, pixel_area, radius_microns=10, output_folder="csv_files"):
     """
     Calculate the overall average size of all tips across all frames and save the result to a CSV file.
 
@@ -636,7 +622,7 @@ def calculate_overall_average_tip_size(tracked_tips, binary_images, radius_micro
             binary_image = binary_images[frame]
 
             # Calculate the size of the tip in the current frame
-            tip_size = calculate_tip_size(binary_image, (y, x), radius_microns)
+            tip_size = calculate_tip_size(binary_image, (y, x), radius_microns, pixel_area)
             total_size += tip_size
             total_count += 1
 
@@ -734,28 +720,14 @@ def calculate_branching_rate(tip_positions, distance_threshold=15, output_folder
 
 # ========== MYCELIAL METRICS ==========
 
-def find_biomass(binary_image, fov_1x, magnification):
+def find_biomass(binary_image, pixel_area):
     """
     Calculate the biomass (physical area) of the fungal structure in the binary image.
 
     :param binary_image: Binary image as a NumPy array (1 for foreground, 0 for background).
-    :param fov_1x: Field of View at 1x magnification (width, height) in micrometers.
-    :param magnification: Magnification level of the image.
+    :param pixel_area: Area per pixel in micrometers squared
     :return: Biomass in micrometers squared.
     """
-    # Image dimensions
-    image_height, image_width = binary_image.shape
-
-    # Calculate the FOV at the given magnification
-    fov_width = fov_1x[0] / magnification  # µm
-    fov_height = fov_1x[1] / magnification  # µm
-
-    # Calculate pixel dimensions
-    pixel_width = fov_width / image_width  # µm per pixel
-    pixel_height = fov_height / image_height  # µm per pixel
-
-    # Calculate pixel area in micrometers squared
-    pixel_area = pixel_width * pixel_height  # µm² per pixel
 
     # Calculate biomass (number of foreground pixels * pixel area)
     biomass_pixels = np.sum(binary_image)  # Count the number of white pixels
@@ -764,13 +736,12 @@ def find_biomass(binary_image, fov_1x, magnification):
     return biomass_area
 
 
-def calculate_biomass_over_time(image_files, fov_1x, magnification, output_folder="csv_files", graph_folder="graphs"):
+def calculate_biomass_over_time(image_files, pixel_area, output_folder="csv_files", graph_folder="graphs"):
     """
     Calculate biomass over time for a sequence of images and save to a CSV file.
 
     :param image_files: List of file paths to the PNG images.
-    :param fov_1x: Field of View at 1x magnification (width, height) in micrometers.
-    :param magnification: Magnification level of the images.
+    :param pixel_area: Area per pixel in micrometers squared
     :param output_folder: Folder path to store the CSV file.
     :return: List of biomass values (one for each frame).
     """
@@ -791,7 +762,7 @@ def calculate_biomass_over_time(image_files, fov_1x, magnification, output_folde
         binary_image = preprocess_image(image)
         
         # Calculate biomass
-        biomass = find_biomass(binary_image, fov_1x, magnification)
+        biomass = find_biomass(binary_image, pixel_area)
         biomass_values.append((frame_idx, biomass))
 
     # Save the results to a CSV file
@@ -1092,8 +1063,8 @@ def delete_folder(folder_path):
 
 
 
-# Define the folder containing the images - outputs dir
-folder_path = '/Users/noahweiler/Library/CloudStorage/OneDrive-ImperialCollegeLondon/Noah SWE Project/Processed_images'
+# Define the folder containing the images
+folder_path = 'C:/Users/ls2221/OneDrive - Imperial College London/Year 3/Software Engineering/Project/Proc_Ims'
 
 # Collect all `.tif` file paths from the folder
 image_files = [
@@ -1121,10 +1092,16 @@ image_files.sort(key=extract_frame_number)
 #outputs_dir = sys.argv[6]  # Base output directory from command-line arguments
 outputs_dir = "outputs"  # Base output directory from command-line arguments
 
-#fov_1x = (int(sys.argv[2]), int(sys.argv[3]))  # Field of view in micrometers
-fov_1x = (1000, 1000)  # Field of view in micrometers
-
 magnification = 10  # Magnification level
+if magnification == 10:
+    pixel_area = 0.65**2
+elif magnification == 20:
+    pixel_area = 0.33**2
+elif magnification == 40:
+    pixel_area = 0.17**2
+elif magnification == 100:
+    pixel_area = 0.07**2
+
 time_per_frame = 2  # Time difference between consecutive frames in seconds
 frame_interval = 2  # Frame interval for growth rate calculations
 distance_threshold = 15  # Distance threshold for tip tracking
@@ -1154,9 +1131,6 @@ image_files = sorted(
     key=extract_frame_number
 )
 
-# Ensure visuals folder exists
-visuals_folder = "visuals"
-os.makedirs(visuals_folder, exist_ok=True)
 
 for frame_idx, image_file in enumerate(image_files):
     # Load and preprocess image
@@ -1177,7 +1151,7 @@ for frame_idx, image_file in enumerate(image_files):
     display_tips(binary_image, endpoints, frame_idx, visuals_folder=visuals_folder)
 
     # Calculate biomass
-    biomass = find_biomass(binary_image, fov_1x, magnification)
+    biomass = find_biomass(binary_image, pixel_area)
     biomass_values.append(biomass)
 
     print(f"Processed frame {frame_idx}")
@@ -1197,7 +1171,7 @@ calculate_growth_angles(tracked_tips, tip_id, csv_folder, graph_folder)
 calculate_branching_rate(tip_positions_sequence, distance_threshold, csv_folder, graph_folder)
 
 # Biomass analysis
-calculate_biomass_over_time(image_files, fov_1x, magnification, csv_folder, graph_folder)
+calculate_biomass_over_time(image_files, pixel_area, csv_folder, graph_folder)
 
 track_spores_over_time(image_files, 10, 200, 0.7, 15, csv_folder, graph_folder)
 
