@@ -180,6 +180,7 @@ Growth rates, branching frequencies, biomass trends, spore metrics
 
 * JavaScript was heavily aided by ChatGPT, especially in the first made files home_renderer.js and global.js.
 * CSS and HTML was aided but not pasted from ChatGPT, although troubleshooting was heavily aided.
+* Python references are cited in-code
 
 # Contact
 
