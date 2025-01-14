@@ -176,6 +176,11 @@ Growth rates, branching frequencies, biomass trends, spore metrics
 
 * Review logs for any warnings or errors
 
+# References
+
+* JavaScript was heavily aided by ChatGPT, especially in the first made files home_renderer.js and global.js.
+* CSS and HTML was aided but not pasted from ChatGPT, although troubleshooting was heavily aided.
+
 # Contact
 
 For questions or support, please contact evan_hammerstein22@imperial.ac.uk
