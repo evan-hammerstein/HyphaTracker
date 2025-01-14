@@ -235,11 +235,8 @@ def find_hyphal_endpoints(filtered_skeleton, frame_idx, output_folder="csv_files
 #DISTANCE TO REGIONS OF INTEREST
 # Example: Regions of interest (e.g., spore centroids)
 
-# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-# ADD VALUE FROM GUI HERE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
- 
 # roi = [(int(sys.argv[]), int(sys.argv[])), (int(sys.argv[]), int(sys.argv[]))]
+
 import os
 import cv2
 import numpy as np
@@ -836,6 +833,7 @@ def identify_spores(image, min_size, max_size, circularity_threshold):
 #NUMBER/SIZE/DISTRIBUTION OF SPORES (SPHERICAL STRUCTURES)
 from scipy.spatial.distance import cdist
 
+#/* Reference 1 - Information and guidance provided by ChatGPT, an AI language model developed by OpenAI. */ 
 def track_spores_over_time(image_files, min_size=10, max_size=200, circularity_threshold=0.7, distance_threshold=15, output_folder="csv_files", graph_folder="graphs"):
     """
     Track spores over time across a sequence of images and output their sizes over time.
@@ -961,7 +959,7 @@ def track_spores_over_time(image_files, min_size=10, max_size=200, circularity_t
 
     print(f"Spore count and size saved to CSV, and graphs saved to {graph_folder}.")
     return tracked_spores
-
+#End Reference 1
 
 # ========== SEQUENCE PROCESSING ==========
 
@@ -994,6 +992,7 @@ def process_sequence(image_files, min_size=50, distance_threshold=15): # adjust 
     return tracked_tips
 
 # Match tips between frames and handle branching
+#/* Reference 2 - Information and guidance provided by ChatGPT, an AI language model developed by OpenAI. */ 
 def track_tips_across_frames(tip_positions, distance_threshold=15, output_folder="csv_files"):
     """
     Track hyphal tips across frames, creating separate lists for new branches.
@@ -1051,7 +1050,7 @@ def track_tips_across_frames(tip_positions, distance_threshold=15, output_folder
 
     print(f"Tracked tips saved to {csv_file}")
     return tracked_tips
-
+#End Reference 2
 
 # ========== MAIN EXECUTION ==========
 
@@ -1118,7 +1117,7 @@ def extract_frame_number(file_path):
     parts = file_name.split('_')
     return int(parts[2])  # Frame number is the 3rd part (index 2)
 
-
+#/* Reference 3 - Information and guidance provided by ChatGPT, an AI language model developed by OpenAI. */ 
 def select_area(event, x, y, flags, param):
     global selected_area, resizing, resized_img, scale_factor, selection_done
 
@@ -1148,7 +1147,7 @@ def select_area(event, x, y, flags, param):
             print(f"Selected area: {selected_area}")
         selection_done = True
 
-
+#End Reference 3
 def select_ROI(event, x, y, flags, param):
     global selected_ROI, resizing, resized_img, scale_factor, ROIselection_done
 
@@ -1225,6 +1224,7 @@ def main():
   #  try:
         logging.info("Starting HyphaTracker")
         # Create output subfolders
+
         outputs_dir = r"C:\Users\Harry\OneDrive - Imperial College London\Bioeng\Year 3\Software Engineering\HyphaTracker\Outputs"# sys.argv[1]
         os.makedirs(outputs_dir, exist_ok=True)  # Create the directory if it doesn't exist
         folder_path = r"C:\Users\Harry\OneDrive - Imperial College London\Bioeng\Year 3\Software Engineering\HyphaTracker\Processed_frames"# sys.argv[1]
@@ -1350,4 +1350,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-      
