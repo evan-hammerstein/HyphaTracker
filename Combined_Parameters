@@ -234,9 +234,6 @@ def find_hyphal_endpoints(filtered_skeleton, frame_idx, output_folder="csv_files
 #DISTANCE TO REGIONS OF INTEREST
 # Example: Regions of interest (e.g., spore centroids)
 
-# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-# ADD VALUE FROM GUI HERE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
 roi = [(100, 200), (150, 300)]  # Example coordinates
 # roi = [(int(sys.argv[]), int(sys.argv[])), (int(sys.argv[]), int(sys.argv[]))]
 import os
@@ -791,6 +788,7 @@ def calculate_biomass_over_time(image_files, pixel_area, output_folder="csv_file
 
 
 # ==========SPORES===========
+#/* Reference 4 - Information and guidance provided by ChatGPT, an AI language model developed by OpenAI. */ 
 
 def identify_spores(image, min_size, max_size, circularity_threshold):
     """
@@ -829,11 +827,13 @@ def identify_spores(image, min_size, max_size, circularity_threshold):
                     spores.append({"center": (int(x), int(y)), "size": area})
 
     return spores
-
+#End Reference 4
 
 
 #NUMBER/SIZE/DISTRIBUTION OF SPORES (SPHERICAL STRUCTURES)
 from scipy.spatial.distance import cdist
+
+#/* Reference 5 - Information and guidance provided by ChatGPT, an AI language model developed by OpenAI. */ 
 
 def track_spores_over_time(image_files, min_size=10, max_size=200, circularity_threshold=0.7, distance_threshold=15, output_folder="csv_files", graph_folder="graphs"):
     """
@@ -960,7 +960,7 @@ def track_spores_over_time(image_files, min_size=10, max_size=200, circularity_t
 
     print(f"Spore count and size saved to CSV, and graphs saved to {graph_folder}.")
     return tracked_spores
-
+#End Reference 5
 
 # ========== SEQUENCE PROCESSING ==========
 
@@ -993,6 +993,7 @@ def process_sequence(image_files, min_size=50, distance_threshold=15): # adjust 
     return tracked_tips
 
 # Match tips between frames and handle branching
+#/* Reference 6 - Information and guidance provided by ChatGPT, an AI language model developed by OpenAI. */ 
 def track_tips_across_frames(tip_positions, distance_threshold=15, output_folder="csv_files"):
     """
     Track hyphal tips across frames, creating separate lists for new branches.
@@ -1050,7 +1051,7 @@ def track_tips_across_frames(tip_positions, distance_threshold=15, output_folder
 
     print(f"Tracked tips saved to {csv_file}")
     return tracked_tips
-
+#End Reference 6
 
 # ========== MAIN EXECUTION ==========
 
@@ -1075,6 +1076,7 @@ def delete_folder(folder_path):
         print(f"Folder does not exist: {folder_path}")
 
 
+#/* Reference 7 - Information and guidance provided by ChatGPT, an AI language model developed by OpenAI. */ 
 
 # Define the folder containing the images
 #folder_path = 'C:/Users/ls2221/OneDrive - Imperial College London/Year 3/Software Engineering/Project/Proc_Ims'
@@ -1100,6 +1102,7 @@ def extract_frame_number(file_path):
 # Sort using the extracted frame number
 image_files.sort(key=extract_frame_number)
 
+#End Reference 7
 
 # Define input and output parameters
 outputs_dir = sys.argv[5]  # Base output directory from command-line arguments
