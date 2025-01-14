@@ -1,12 +1,14 @@
 # HyphaTracker
 
-This project is designed to analyze fungal growth using image processing techniques. It provides tools to process a sequence of tiff files representing a time lapse of fungal growth, detect and track hyphal tips, calculate growth metrics, and visualize results. The analysis includes measurements of tip growth rates, branching frequency, spore identification, biomass quantification, and distances to regions of interest (ROIs).
+This project is designed to analyze fungal growth using image processing techniques. It provides tools to process a sequence of tiff files representing a time-lapse of fungal growth, detect and track hyphal tips, calculate growth metrics, and visualize results. The analysis includes measurements of tip growth rates, branching frequency, spore identification, biomass quantification, and distances to regions of interest (ROIs).
 
 # Features
 
-**1. Image Preprocessing:** Cropping, binarization, and skeletonization of grayscale images
+**1. Interactive GUI:** File upload, metric specification, and output access and visualization
 
-**2. Hyphal Analysis:**
+**2. Image Preprocessing:** Cropping, binarization, and skeletonization of grayscale images
+
+**3. Hyphal Analysis:**
 
 * Detect endpoints and calculate growth rates and angles
 
@@ -14,17 +16,17 @@ This project is designed to analyze fungal growth using image processing techniq
 
 * Analyze tip size and branching frequencies
 
-**3. Biomass Analysis:** Measure fungal biomass over time
+**4. Biomass Analysis:** Measure fungal biomass over time
 
-**4. Spore Tracking:**
+**5. Spore Tracking:**
 
 * Identify spores based on size, shape, and proximity to biomass
 
 * Track spores across multiple frames
 
-**5. Visualization:** Generate visual outputs, including skeletonized images, tracked tips, and ROI distance visualizations
+**6. Visualization:** Generate visual outputs, including skeletonized images, tracked tips, and ROI distance visualizations
 
-**6. Metrics Output:** Save results in CSV files and generate graphs for key metrics
+**7. Metrics Output:** Save results in CSV files and generate graphs for key metrics
 
 # Requirements
 
@@ -142,6 +144,9 @@ Results will be saved in the specified output folders:
 **`select_ROI`:** Enables selection of a rectangular region of interest (ROI)
 
 # Outputs
+
+Outputs are organized into three folders; csv_files, graphs, and visuals.
+They are downloaded to the file explorer for access and an option for viewing them in the GUI is provided. 
 
 ## CSV Files:
 
