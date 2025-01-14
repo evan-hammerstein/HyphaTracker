@@ -53,7 +53,7 @@ Please ensure all dependencies are installed before running the script.
 
 ## Compatible Systems
 
-* Mac
+* Mac OS
 
 # Usage Instructions
 
@@ -65,15 +65,8 @@ Ensure file names follow a pattern to allow frame numbers to be extracted (e.g.,
 
 ## Step 2: Run the Script
 
-Use the following command:
-
-`python script.py <image_folder_path> <magnification> <output_folder>`
-
-`<image_folder_path>`: Path to the folder containing .tif files
-
-`<magnification>`: Objective lens magnification (10x, 20x, 40x, or 100x)
-
-`<output_folder>`: Path to save the outputs (CSV files, visualizations, and graphs)
+Specify parameters like magnification, filter type, and sensitivity.
+Upload the file folder for analysis and click 'Go'.
 
 ## Step 3: Review Results
 
