@@ -171,8 +171,8 @@ Growth rates, branching frequencies, biomass trends, spore metrics
 
 * Ensure input images are preprocessed
 
-* Review logs for any warnings or errors during processing
+* Review logs for any warnings or errors
 
 # Contact
 
-For questions or support, contact the developer at evan_hammerstein22@imperial.ac.uk
+For questions or support, please contact evan_hammerstein22@imperial.ac.uk
