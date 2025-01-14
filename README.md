@@ -175,4 +175,4 @@ Growth rates, branching frequencies, biomass trends, spore metrics
 
 # Contact
 
-For questions or support, contact the developer at [evan_hammerstein22@imperial.ac.uk].
+For questions or support, contact the developer at evan_hammerstein22@imperial.ac.uk
