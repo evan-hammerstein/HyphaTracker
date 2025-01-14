@@ -28,7 +28,7 @@ This project is designed to analyze fungal growth using image processing techniq
 
 # Requirements
 
-# Software Dependencies
+## Software Dependencies
 
 The code requires the following Python libraries:
 
@@ -43,7 +43,7 @@ The code requires the following Python libraries:
 
 Ensure all dependencies are installed before running the script.
 
-# Input Data
+## Input Data
 
 * A folder containing grayscale image files (`.tif` format)
 
@@ -93,6 +93,12 @@ Results will be saved in the specified output folders:
 
 **`track_tips_across_frames`:** Matches tips between frames
 
+**`calculate_tip_size`:** Determines the size of a hyphal tip based on pixel area.
+
+**`track_tip_size_over_time`:** Tracks changes in hyphal tip size across multiple frames.
+
+**`calculate_overall_average_tip_size`:** Calculates the average size of all tips across frames.
+
 **`calculate_average_growth_rate`:** Computes the average growth rate of tips
 
 **`calculate_growth_angles`:** Determines growth angles of tips relative to the horizontal
@@ -120,6 +126,16 @@ Results will be saved in the specified output folders:
 **`visualize_tracked_tips`:** Shows the tracked tips across frames
 
 **`calculate_distances_to_roi_and_visualize`:** Computes and visualizes the distances of tips from a specified ROI
+
+## Additional Image Processing Functions
+
+**`filter_hyphae`:** Removes small connected components (e.g., noise or spores) to retain only large hyphae structures.
+
+**`process_frame`:** Applies normalization, thresholding, and morphological operations to enhance image quality for analysis.
+
+**`select_area`:** Allows the user to interactively select an area of interest for cropping.
+
+**`select_ROI`:** Enables interactive selection of a rectangular region of interest (ROI).
 
 # Outputs
 
