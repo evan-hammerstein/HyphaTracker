@@ -41,13 +41,13 @@ The code requires the following Python libraries:
 * `matplotlib`
 * `csv`
 
-Ensure all dependencies are installed before running the script.
+Please ensure all dependencies are installed before running the script.
 
 ## Input Data
 
 * A folder containing grayscale image files (`.tif` format)
 
-* Images should be named with frame numbers to allow sequential processing
+* Images should be named with frame numbers for sequential processing
 
 # Usage Instructions
 
@@ -55,7 +55,7 @@ Ensure all dependencies are installed before running the script.
 
 Place all `.tif` image files in a single folder
 
-Ensure file names follow a pattern to allow frame numbers to be extracted (e.g., processed_frame_001.tif)
+Ensure file names follow a pattern to allow frame numbers to be extracted (e.g., processed_frame_1.tif)
 
 ## Step 2: Run the Script
 
