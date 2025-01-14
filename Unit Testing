@@ -1,147 +1,750 @@
 import unittest
-from unittest.mock import patch, mock_open, MagicMock
+from unittest.mock import patch,mock_open, MagicMock
 import os
 import numpy as np
+import matplotlib.pyplot as plt
+import cv2
+import csv
 from scipy.ndimage import convolve
 from skimage.measure import label
-import csv
+import math
+from scipy.spatial.distance import cdist
+from skimage.filters import threshold_otsu
+from skimage.exposure import rescale_intensity
 
-# Importing the functions to test
-from your_module import (
-    save_to_csv,
-    find_hyphal_endpoints,
-    calculate_distances_to_roi_and_visualize,
-    closest_point_on_line_segment,
-    draw_dotted_line,
-    calculate_average_growth_rate,
-    calculate_growth_angles,
-    calculate_tip_size,
-    track_tip_size_over_time,
-    calculate_overall_average_tip_size,
-    calculate_branching_rate,
-    find_biomass,
-    calculate_biomass_over_time,
-)
+from Final import (display_tips, visualize_tracked_tips, find_hyphal_endpoints, calculate_distances_to_roi_and_visualize, closest_point_on_line_segment, draw_dotted_line, calculate_average_growth_rate,
+calculate_growth_angles, calculate_tip_size, track_tip_size_over_time, calculate_overall_average_tip_size, calculate_branching_rate, find_biomass, calculate_biomass_over_time,identify_spores,
+track_spores_over_time, track_tips_across_frames, process_frame, select_area, select_ROI )
 
-class TestFunctions(unittest.TestCase):
-    
-    def setUp(self):
-        # Setup common test data
-        self.filtered_skeleton = np.array([
-            [0, 1, 0],
-            [1, 1, 1],
-            [0, 1, 0]
-        ])
-        self.frame_idx = 1
-        self.output_folder = "test_outputs"
-        self.tracked_tips = {
-            "tip_1": [(0, 10, 10), (1, 15, 15), (2, 20, 20)],
-            "tip_2": [(0, 5, 5), (1, 8, 8), (2, 10, 10)]
+class TestDisplayTips(unittest.TestCase):
+
+    @patch("os.path.join", return_value="mocked_path/tips_frame_1.png")
+    @patch("matplotlib.pyplot.savefig")
+    @patch("matplotlib.pyplot.show")
+    def test_display_tips(self, mock_show, mock_savefig, mock_path_join):
+        # Mock inputs
+        binary_image = np.zeros((100, 100))  # Example binary image
+        tips = [(10, 20), (30, 40)]  # Example tips coordinates
+        frame_idx = 1
+        visuals_folder = "mocked_path"
+
+        # Call the function
+        display_tips(binary_image, tips, frame_idx, visuals_folder)
+
+        # Assert that os.path.join was called correctly
+        mock_path_join.assert_called_once_with("mocked_path", "tips_frame_1.png")
+
+        # Assert that plt.savefig was called with the correct arguments
+        mock_savefig.assert_called_once_with("mocked_path/tips_frame_1.png", bbox_inches='tight', dpi=300)
+
+        # Assert that plt.show was called once
+        mock_show.assert_called_once()
+
+
+class TestVisualizeTrackedTips(unittest.TestCase):
+
+    @patch("os.path.join", return_value="mocked_path/tracked_tips_frame_1.png")
+    @patch("matplotlib.pyplot.savefig")
+    @patch("matplotlib.pyplot.show")
+    @patch("cv2.imread", return_value=np.zeros((100, 100), dtype=np.uint8))
+    def test_visualize_tracked_tips(self, mock_imread, mock_show, mock_savefig, mock_path_join):
+        # Mock inputs
+        tracked_tips = {
+            1: [(1, 10, 20)],  # Tip ID 1 at frame 1 with coordinates (10, 20)
+            2: [(1, 30, 40)]   # Tip ID 2 at frame 1 with coordinates (30, 40)
         }
-        self.roi_vertices = [(5, 5), (5, 25), (25, 25), (25, 5)]
-        self.images = [np.zeros((30, 30), dtype=np.uint8) for _ in range(3)]
-        self.binary_image = np.zeros((100, 100), dtype=np.uint8)
-        self.binary_image[40:60, 40:60] = 1
+        image_file = "mocked_image.png"  # Mocked image file path
+        frame_idx = 1                    # Frame index to visualize
+        visuals_folder = "mocked_path"   # Mocked visuals folder path
+
+        # Call the function
+        visualize_tracked_tips(tracked_tips, image_file, frame_idx, visuals_folder)
+
+        # Assert that cv2.imread was called with the correct arguments
+        mock_imread.assert_called_once_with("mocked_image.png", cv2.IMREAD_GRAYSCALE)
+
+        # Assert that os.path.join was called correctly to construct the save path
+        mock_path_join.assert_called_once_with("mocked_path", "tracked_tips_frame_1.png")
+
+        # Assert that plt.savefig was called with the correct arguments
+        mock_savefig.assert_called_once_with("mocked_path/tracked_tips_frame_1.png", bbox_inches='tight', dpi=300)
+
+        # Assert that plt.show was called once to display the plot
+        mock_show.assert_called_once()
+
+
+
+class TestFindHyphalEndpoints(unittest.TestCase):
 
     @patch("os.makedirs")
     @patch("os.path.exists", return_value=False)
     @patch("builtins.open", new_callable=mock_open)
-    
-    def test_save_to_csv(self, mock_open_file, mock_path_exists, mock_makedirs):
-        # Test saving data to CSV
-        data = [["Header1", "Header2"], ["Row1", "Row2"]]
-        filepath = "test_outputs/test.csv"
-        
-        save_to_csv(data, filepath)
-        
-        # Check if folder creation was called
-        mock_makedirs.assert_called_once_with(os.path.dirname(filepath))
-        
-        # Check if file was written correctly
-        mock_open_file.assert_called_once_with(filepath, mode="w", newline="")
-        handle = mock_open_file()
-        handle.write.assert_called()
-
-    @patch("os.makedirs")
     @patch("csv.writer")
-    
-    def test_find_hyphal_endpoints(self, mock_csv_writer, mock_makedirs):
-        endpoints = find_hyphal_endpoints(self.filtered_skeleton, self.frame_idx)
-        
-        # Check if output folder was created
-        mock_makedirs.assert_called_once_with(self.output_folder)
-        
-        # Check if endpoints are detected correctly
-        expected_endpoints = [(0, 1), (2, 1)]
-        self.assertEqual(endpoints, expected_endpoints)
+    def test_find_hyphal_endpoints(self, mock_csv_writer, mock_open_file, mock_path_exists, mock_makedirs):
+        # Mock inputs
+        filtered_skeleton = np.array([
+            [0, 0, 0, 0],
+            [0, 1, 1, 0],
+            [0, 1, 0, 0],
+            [0, 0, 0, 0]
+        ])
+        frame_idx = 1
+        output_folder = "mocked_csv_files"
+
+        # Expected outputs
+        expected_endpoints = [(1, 2), (2, 1)]  # Coordinates of pixels with exactly one neighbor
+
+        # Mock CSV writer object
+        mock_csv_writer_instance = MagicMock()
+        mock_csv_writer.return_value = mock_csv_writer_instance
+
+        # Call the function
+        result = find_hyphal_endpoints(filtered_skeleton, frame_idx, output_folder)
+
+        # Assertions on folder creation
+        mock_path_exists.assert_called_once_with(output_folder)
+        mock_makedirs.assert_called_once_with(output_folder)
+
+        # Assertions on CSV file writing
+        mock_open_file.assert_called_once_with(
+            os.path.join(output_folder, f"hyphal_endpoints_frame_{frame_idx}.csv"), mode="w", newline=""
+        )
+        mock_csv_writer_instance.writerow.assert_any_call(["y", "x"])  # Header row
+        mock_csv_writer_instance.writerows.assert_called_once_with(expected_endpoints)
+
+        # Assert the returned endpoints match the expected endpoints
+        self.assertEqual(result, expected_endpoints)
+
+    @patch("os.path.exists", return_value=True)
+    @patch("builtins.open", new_callable=mock_open)
+    @patch("csv.writer")
+    def test_find_hyphal_endpoints_existing_folder(self, mock_csv_writer, mock_open_file, mock_path_exists):
+        # Mock inputs
+        filtered_skeleton = np.array([
+            [0, 0, 0],
+            [0, 1, 1],
+            [0, 1, 0]
+        ])
+        frame_idx = 2
+        output_folder = "existing_csv_files"
+
+        # Expected outputs
+        expected_endpoints = [(1, 2), (2, 1)]
+
+        # Mock CSV writer object
+        mock_csv_writer_instance = MagicMock()
+        mock_csv_writer.return_value = mock_csv_writer_instance
+
+        # Call the function
+        result = find_hyphal_endpoints(filtered_skeleton, frame_idx, output_folder)
+
+        # Assertions on folder existence (should not create a new folder)
+        mock_path_exists.assert_called_once_with(output_folder)
+
+        # Assertions on CSV file writing
+        mock_open_file.assert_called_once_with(
+            os.path.join(output_folder, f"hyphal_endpoints_frame_{frame_idx}.csv"), mode="w", newline=""
+        )
+        mock_csv_writer_instance.writerow.assert_any_call(["y", "x"])  # Header row
+        mock_csv_writer_instance.writerows.assert_called_once_with(expected_endpoints)
+
+        # Assert the returned endpoints match the expected endpoints
+        self.assertEqual(result, expected_endpoints)
+
+class TestCalculateDistancesToROI(unittest.TestCase):
 
     @patch("os.makedirs")
-    @patch("cv2.polylines")
-    @patch("cv2.circle")
     @patch("cv2.imwrite")
-    
-    def test_calculate_distances_to_roi_and_visualize(self, mock_imwrite, mock_circle,
-                                                     mock_polylines, mock_makedirs):
-        distances = calculate_distances_to_roi_and_visualize(
-            self.tracked_tips,
-            "tip_1",
-            self.roi_vertices,
-            self.images,
-            self.output_folder
-        )
-        
-        # Check if output folders were created
-        mock_makedirs.assert_called()
-        
-        # Check if distances are calculated correctly
-        self.assertEqual(len(distances), len(self.tracked_tips["tip_1"]))
+    @patch("builtins.open", new_callable=mock_open)
+    @patch("csv.writer")
+    def test_calculate_distances_to_roi_and_visualize(self, mock_csv_writer, mock_open_file, mock_imwrite, mock_makedirs):
+        # Mock inputs
+        tracked_tips = {
+            1: [(0, 10, 10), (1, 20, 20)]  # Tip ID 1 with positions across two frames
+        }
+        tip_id = 1
+        roi_vertices = [(5, 5), (5, 15), (15, 15), (15, 5)]  # Rectangular ROI
+        images = [np.zeros((30, 30), dtype=np.uint8) for _ in range(2)]  # Two blank grayscale frames
+        visuals_folder = "mock_visuals"
+        csv_folder = "mock_csv"
+
+        # Call the function
+        distances = calculate_distances_to_roi_and_visualize(tracked_tips, tip_id, roi_vertices, images, visuals_folder, csv_folder)
+
+        # Assertions on distances
+        self.assertEqual(len(distances), 2)  # Two frames processed
+        self.assertEqual(distances[0], 0)  # Tip is inside ROI in the first frame
+        self.assertGreater(distances[1], 0)  # Tip is outside ROI in the second frame
+
+        # Check folder creation
+        mock_makedirs.assert_any_call(visuals_folder, exist_ok=True)
+        mock_makedirs.assert_any_call(csv_folder, exist_ok=True)
+
+        # Check CSV writing
+        mock_open_file.assert_called_once_with(os.path.join(csv_folder, "distances_to_roi_tip_1.csv"), mode="w", newline="")
+        mock_csv_writer_instance = mock_csv_writer.return_value
+        mock_csv_writer_instance.writerows.assert_called()
 
     def test_closest_point_on_line_segment(self):
-        px, py = closest_point_on_line_segment(0, 0, 10, 0, 5, 5)
-        
-        # Check if closest point is calculated correctly
-        self.assertEqual((px, py), (5.0, 0.0))
+        # Test cases for closest_point_on_line_segment
+        self.assertEqual(closest_point_on_line_segment(0, 0, 10, 0, 5, 5), (5.0, 0.0))  # Closest point is on the segment
+        self.assertEqual(closest_point_on_line_segment(0, 0, 10, 0, -5, -5), (0.0, 0.0))  # Closest point is the start of the segment
+        self.assertEqual(closest_point_on_line_segment(0, 0, 10, 0, 15, -5), (10.0, 0.0))  # Closest point is the end of the segment
 
-    def test_draw_dotted_line(self):
-        image = np.zeros((100, 100), dtype=np.uint8)
-        
-        draw_dotted_line(image=image,
-                         start=(10, 10),
-                         end=(90, 90),
-                         color=(255,),
-                         thickness=1)
-        
-        # Check if some pixels were drawn on the image
-        self.assertTrue(np.any(image > 0))
+    @patch("cv2.line")
+    def test_draw_dotted_line(self, mock_line):
+        # Mock inputs
+        image = np.zeros((30, 30, 3), dtype=np.uint8)  # Blank RGB image
+        start = (0, 0)
+        end = (20, 20)
+        color = (255, 255, 255)
+
+        # Call the function
+        draw_dotted_line(image, start, end, color)
+
+        # Check that cv2.line is called multiple times for dotted effect
+        self.assertGreater(mock_line.call_count, 1)
+
+
+import unittest
+from unittest.mock import patch, mock_open, MagicMock
+import os
+import numpy as np
+
+# Assuming calculate_average_growth_rate is defined in the current module
+from __main__ import calculate_average_growth_rate
+
+class TestCalculateAverageGrowthRate(unittest.TestCase):
 
     @patch("os.makedirs")
+    @patch("builtins.open", new_callable=mock_open)
     @patch("csv.writer")
-    
-    def test_calculate_average_growth_rate(self, mock_csv_writer, mock_makedirs):
-        avg_rates, general_avg_rate = calculate_average_growth_rate(
-            self.tracked_tips,
-            frame_interval=1,
-            time_per_frame=1.0,
-            output_folder=self.output_folder
+    def test_calculate_average_growth_rate(self, mock_csv_writer, mock_open_file, mock_makedirs):
+        # Mock inputs
+        tracked_tips = {
+            1: [(0, 0, 0), (1, 3, 4), (2, 6, 8)],  # Tip ID 1 with positions
+            2: [(0, 0, 0), (1, 0, 5), (2, 0, 10)]  # Tip ID 2 with positions
+        }
+        frame_interval = 1
+        time_per_frame = 1  # Time difference between frames in seconds
+        output_folder = "mock_csv_files"
+
+        # Call the function
+        average_growth_rates, general_average_growth_rate = calculate_average_growth_rate(
+            tracked_tips, frame_interval, time_per_frame, output_folder
         )
-        
-        # Check if output folder was created
-        mock_makedirs.assert_called_once_with(self.output_folder)
-        
-        # Check if average growth rates are calculated correctly
-        self.assertIn("tip_1", avg_rates)
-    
-    def test_calculate_tip_size(self):
-        tip_size = calculate_tip_size(
-            binary_image=self.binary_image,
-            tip_position=(50, 50),
-            radius_microns=10,
-            fov_1x=(1000.0, 1000.0),
-            magnification=10.0
+
+        # Assertions on folder creation
+        mock_makedirs.assert_called_once_with(output_folder, exist_ok=True)
+
+        # Assertions on CSV writing
+        mock_open_file.assert_called_once_with(os.path.join(output_folder, "average_growth_rates.csv"), mode="w", newline="")
+        mock_csv_writer_instance = mock_csv_writer.return_value
+        mock_csv_writer_instance.writerows.assert_called()
+
+        # Assertions on growth rates
+        self.assertAlmostEqual(average_growth_rates[1], 5.0)  # Tip ID 1 growth rate
+        self.assertAlmostEqual(average_growth_rates[2], 5.0)  # Tip ID 2 growth rate
+        self.assertAlmostEqual(general_average_growth_rate, 5.0)  # General average growth rate
+
+class TestCalculateAverageGrowthRate(unittest.TestCase):
+
+    @patch("os.makedirs")
+    @patch("builtins.open", new_callable=mock_open)
+    @patch("csv.writer")
+    def test_calculate_average_growth_rate(self, mock_csv_writer, mock_open_file, mock_makedirs):
+        # Mock inputs
+        tracked_tips = {
+            1: [(0, 0, 0), (1, 3, 4), (2, 6, 8)],  # Tip ID 1 with positions
+            2: [(0, 0, 0), (1, 0, 5), (2, 0, 10)]  # Tip ID 2 with positions
+        }
+        frame_interval = 1
+        time_per_frame = 1  # Time difference between frames in seconds
+        output_folder = "mock_csv_files"
+
+        # Call the function
+        average_growth_rates, general_average_growth_rate = calculate_average_growth_rate(
+            tracked_tips, frame_interval, time_per_frame, output_folder
         )
-        
-        # Check if calculated tip size is reasonable
+
+        # Assertions on folder creation
+        mock_makedirs.assert_called_once_with(output_folder, exist_ok=True)
+
+        # Assertions on CSV writing
+        mock_open_file.assert_called_once_with(os.path.join(output_folder, "average_growth_rates.csv"), mode="w", newline="")
+        mock_csv_writer_instance = mock_csv_writer.return_value
+        mock_csv_writer_instance.writerows.assert_called()
+
+        # Assertions on growth rates
+        self.assertAlmostEqual(average_growth_rates[1], 5.0)  # Tip ID 1 growth rate
+        self.assertAlmostEqual(average_growth_rates[2], 5.0)  # Tip ID 2 growth rate
+        self.assertAlmostEqual(general_average_growth_rate, 5.0)  # General average growth rate
+
+# Assuming calculate_growth_angles is defined in the current module
+
+class TestCalculateGrowthAngles(unittest.TestCase):
+
+    @patch("os.makedirs")
+    def test_calculate_growth_angles(self, mock_makedirs):
+        # Mock inputs
+        tracked_tips = {
+            1: [(0, 0, 0), (1, 3, 4), (2, 6, 8)]  # Tip ID 1 with positions
+        }
+        tip_id = 1
+        output_folder = "mock_csv_files"
+
+        # Call the function
+        growth_angles = calculate_growth_angles(tracked_tips, tip_id, output_folder)
+
+        # Assertions on folder creation
+        mock_makedirs.assert_called_once_with(output_folder, exist_ok=True)
+
+        # Assertions on growth angles (angles between consecutive points)
+        self.assertAlmostEqual(growth_angles[0], math.degrees(math.atan2(4 - 0, 3 - 0)), places=2)  
+        self.assertAlmostEqual(growth_angles[1], math.degrees(math.atan2(8 - 4, 6 - 3)), places=2)
+
+
+
+class TestCalculateTipSize(unittest.TestCase):
+
+    def test_tip_size_within_radius(self):
+        # Create a binary image with a filled circle
+        binary_image = np.zeros((100, 100), dtype=int)
+        binary_image[50, 50] = 1  # Single pixel at the center
+
+        # Tip position at the center
+        tip_position = (50, 50)
+
+        # Parameters
+        radius_microns = 10
+        fov_1x = (1000, 1000)
+        magnification = 10
+
+        # Call the function
+        tip_size = calculate_tip_size(binary_image, tip_position, radius_microns, fov_1x, magnification)
+
+        # Assert the tip size is calculated correctly
         self.assertGreater(tip_size, 0)
+
+    def test_tip_size_outside_radius(self):
+        # Create a binary image with a filled circle
+        binary_image = np.zeros((100, 100), dtype=int)
+        binary_image[10, 10] = 1  # Single pixel far from the center
+
+        # Tip position at the center
+        tip_position = (50, 50)
+
+        # Parameters
+        radius_microns = 10
+        fov_1x = (1000, 1000)
+        magnification = 10
+
+        # Call the function
+        tip_size = calculate_tip_size(binary_image, tip_position, radius_microns, fov_1x, magnification)
+
+        # Assert the tip size is zero since the pixel is outside the radius
+        self.assertEqual(tip_size, 0)
+
+
+class TestTrackTipSizeOverTime(unittest.TestCase):
+
+    @patch("os.makedirs")
+    @patch("builtins.open", new_callable=mock_open)
+    @patch("csv.writer")
+    def test_track_tip_size_over_time(self, mock_csv_writer, mock_open_file, mock_makedirs):
+        # Mock inputs
+        tracked_tips = {
+            1: [(0, 50, 50), (1, 50, 50)]  # Tip ID 1 with positions in two frames
+        }
+        
+        binary_images = [
+            np.zeros((100, 100), dtype=int),
+            np.zeros((100, 100), dtype=int)
+        ]
+        
+        binary_images[0][50, 50] = 1  # Tip in frame 0
+        binary_images[1][50, 50] = 1  # Tip in frame 1
+
+        tip_id = 1
+        radius_microns = 10
+        output_folder = "mock_csv_files"
+
+        # Call the function
+        tip_sizes = track_tip_size_over_time(tracked_tips, binary_images, tip_id, radius_microns, output_folder)
+
+        # Assertions on results
+        self.assertEqual(len(tip_sizes), len(tracked_tips[tip_id]))  # Two frames processed
+        self.assertGreater(tip_sizes[0][1], 0)  # Tip size in frame 0 is greater than zero
+        self.assertGreater(tip_sizes[1][1], 0)  # Tip size in frame 1 is greater than zero
+
+        # Check folder creation
+        mock_makedirs.assert_called_once_with(output_folder)
+
+        # Check CSV writing
+        mock_open_file.assert_called_once_with(os.path.join(output_folder, "tip_1_sizes.csv"), mode="w", newline="")
+        
+        mock_csv_writer_instance = mock_csv_writer.return_value
+        mock_csv_writer_instance.writerow.assert_called_with(["Frame", "Tip Size (µm²)"])
+
+
+class TestCalculateOverallAverageTipSize(unittest.TestCase):
+
+    @patch("os.makedirs")
+    @patch("builtins.open", new_callable=mock_open)
+    @patch("csv.writer")
+    def test_calculate_overall_average_tip_size(self, mock_csv_writer, mock_open_file, mock_makedirs):
+        # Mock inputs
+        tracked_tips = {
+            1: [(0, 50, 50), (1, 50, 50)],  # Tip ID 1 with positions in two frames
+            2: [(0, 30, 30), (1, 30, 30)]   # Tip ID 2 with positions in two frames
+        }
+
+        binary_images = [
+            np.zeros((100, 100), dtype=int),
+            np.zeros((100, 100), dtype=int)
+        ]
+
+        binary_images[0][50, 50] = 1  # Tip in frame 0
+        binary_images[1][50, 50] = 1  # Tip in frame 1
+        binary_images[0][30, 30] = 1  # Tip in frame 0
+        binary_images[1][30, 30] = 1  # Tip in frame 1
+
+        radius_microns = 10
+        output_folder = "mock_csv_files"
+
+        # Mock calculate_tip_size to return a fixed value
+        with patch("__main__.calculate_tip_size", return_value=5.0):
+            # Call the function
+            overall_average_size = calculate_overall_average_tip_size(tracked_tips, binary_images, radius_microns, output_folder)
+
+        # Assertions on results
+        self.assertEqual(overall_average_size, 5.0)  # Average size should match the mocked value
+
+        # Check folder creation
+        mock_makedirs.assert_called_once_with(output_folder)
+
+        # Check CSV writing
+        mock_open_file.assert_called_once_with(os.path.join(output_folder, "overall_average_tip_size.csv"), mode="w", newline="")
+        
+        mock_csv_writer_instance = mock_csv_writer.return_value
+        mock_csv_writer_instance.writerow.assert_any_call(["Metric", "Value"])
+        mock_csv_writer_instance.writerow.assert_any_call(["Overall Average Tip Size (µm²)", overall_average_size])
+
+
+
+
+class TestCalculateBranchingRate(unittest.TestCase):
+
+    @patch("os.makedirs")
+    @patch("builtins.open", new_callable=mock_open)
+    @patch("csv.writer")
+    @patch("scipy.spatial.distance.cdist")
+    def test_calculate_branching_rate(self, mock_cdist, mock_csv_writer, mock_open_file, mock_makedirs):
+        # Mock inputs
+        tip_positions = [
+            [(10, 10), (20, 20)],  # Frame 0 tips
+            [(15, 15), (25, 25)]   # Frame 1 tips
+        ]
+
+        distance_threshold = 15
+        output_folder = "mock_csv_files"
+
+        # Mock cdist to return a fixed distance matrix
+        mock_cdist.return_value = np.array([[10.0, 20.0], [5.0, 15.0]])
+
+        # Call the function
+        branching_events_per_frame, total_branching_events = calculate_branching_rate(tip_positions, distance_threshold, output_folder)
+
+        # Assertions on results
+        self.assertEqual(branching_events_per_frame[0], 0)   # No branching in first frame comparison
+        self.assertEqual(branching_events_per_frame[1], 1)   # One branching event in second frame comparison
+        self.assertEqual(total_branching_events, sum(branching_events_per_frame)) 
+
+        # Check folder creation
+        mock_makedirs.assert_called_once_with(output_folder)
+
+        # Check CSV writing
+        mock_open_file.assert_called_once_with(os.path.join(output_folder, "branching_rate.csv"), mode="w", newline="")
+        
+        mock_csv_writer_instance = mock_csv_writer.return_value
+        mock_csv_writer_instance.writerow.assert_any_call(["Frame", "Branching Events"])
+
+class TestFindBiomass(unittest.TestCase):
+
+    def test_find_biomass(self):
+        # Create a binary image with a known number of foreground pixels
+        binary_image = np.zeros((100, 100), dtype=int)
+        binary_image[50:60, 50:60] = 1  # A 10x10 square of foreground pixels
+
+        # Parameters
+        fov_1x = (1000, 1000)  # Field of view at 1x magnification in µm
+        magnification = 10     # Magnification level
+
+        # Call the function
+        biomass = find_biomass(binary_image, fov_1x, magnification)
+
+        # Calculate expected biomass
+        image_height, image_width = binary_image.shape
+        fov_width = fov_1x[0] / magnification
+        fov_height = fov_1x[1] / magnification
+        pixel_width = fov_width / image_width
+        pixel_height = fov_height / image_height
+        pixel_area = pixel_width * pixel_height
+        expected_biomass = np.sum(binary_image) * pixel_area
+
+        # Assert the calculated biomass matches the expected value
+        self.assertAlmostEqual(biomass, expected_biomass)
+
+class TestCalculateBiomassOverTime(unittest.TestCase):
+
+    @patch("os.makedirs")
+    @patch("cv2.imread", return_value=np.zeros((100, 100), dtype=np.uint8))
+    @patch("builtins.open", new_callable=mock_open)
+    @patch("csv.writer")
+    @patch("__main__.process_frame", return_value=np.ones((100, 100), dtype=int))
+    @patch("__main__.find_biomass", return_value=500.0)
+    def test_calculate_biomass_over_time(self, mock_find_biomass, mock_process_frame, mock_csv_writer,
+                                         mock_open_file, mock_imread, mock_makedirs):
+        # Mock inputs
+        image_files = ["frame1.png", "frame2.png"]
+        fov_1x = (1000, 1000)  # Field of view at 1x magnification in µm
+        magnification = 10     # Magnification level
+        threshold = 128        # Threshold for binarization
+        sensitivity = 0.5      # Sensitivity for processing
+        output_folder = "mock_csv_files"
+
+        # Call the function
+        biomass_values = calculate_biomass_over_time(image_files, fov_1x, magnification,
+                                                     threshold, sensitivity, output_folder)
+
+        # Assertions on results
+        self.assertEqual(len(biomass_values), len(image_files))  # One biomass value per frame
+        self.assertTrue(all(value == 500.0 for value in biomass_values))  # All values are mocked to be 500.0
+
+        # Check folder creation
+        mock_makedirs.assert_called_once_with(output_folder)
+
+        # Check CSV writing
+        mock_open_file.assert_called_once_with(os.path.join(output_folder, "biomass_over_time.csv"), mode="w", newline="")
+        
+        mock_csv_writer_instance = mock_csv_writer.return_value
+        mock_csv_writer_instance.writerow.assert_any_call(["Frame", "Biomass (µm²)"])
+
+
+
+class TestIdentifySpores(unittest.TestCase):
+
+    def test_identify_spores(self):
+        # Create a synthetic image with circular objects (spores)
+        image = np.zeros((100, 100), dtype=np.uint8)
+        cv2.circle(image, (30, 30), 10, 255, -1)  # Spore 1
+        cv2.circle(image, (70, 70), 15, 255, -1)  # Spore 2
+
+        # Parameters
+        min_size = 50
+        max_size = 800
+        circularity_threshold = 0.7
+
+        # Call the function
+        spores = identify_spores(image, min_size, max_size, circularity_threshold)
+
+        # Assertions
+        self.assertEqual(len(spores), 2)  # Two spores should be identified
+        self.assertTrue(all(min_size <= spore["size"] <= max_size for spore in spores))  # Sizes within range
+        self.assertTrue(all(isinstance(spore["center"], tuple) for spore in spores))  # Centers should be tuples
+
+    def test_no_spores_identified(self):
+        # Create an empty image with no spores
+        image = np.zeros((100, 100), dtype=np.uint8)
+
+        # Parameters
+        min_size = 50
+        max_size = 800
+        circularity_threshold = 0.7
+
+        # Call the function
+        spores = identify_spores(image, min_size, max_size, circularity_threshold)
+
+        # Assertions
+        self.assertEqual(len(spores), 0)  # No spores should be identified
+
+
+class TestTrackSporesOverTime(unittest.TestCase):
+
+    @patch("os.makedirs")
+    @patch("cv2.imread", return_value=np.zeros((100, 100), dtype=np.uint8))
+    @patch("builtins.open", new_callable=mock_open)
+    @patch("csv.writer")
+    @patch("__main__.identify_spores", return_value=[
+        {"center": (30, 30), "size": 50},
+        {"center": (70, 70), "size": 150}
+    ])
+    def test_track_spores_over_time(self, mock_identify_spores, mock_csv_writer,
+                                    mock_open_file, mock_imread, mock_makedirs):
+        # Mock inputs
+        image_files = ["frame1.png", "frame2.png"]
+        min_size = 10
+        max_size = 200
+        circularity_threshold = 0.7
+        distance_threshold = 15
+        output_folder = "mock_csv_files"
+
+        # Call the function
+        spore_size_histories = track_spores_over_time(image_files, min_size, max_size, circularity_threshold,distance_threshold,output_folder)
+
+        # Assertions on results
+        self.assertEqual(len(spore_size_histories), len(mock_identify_spores.return_value))  
+        
+        for spore_id, size_history in spore_size_histories.items():
+            self.assertEqual(len(size_history), len(image_files))  
+
+            # Check that sizes match mocked values from `identify_spores`
+            self.assertTrue(all(size in [50, 150] for size in size_history))
+
+        # Check folder creation and CSV writing
+        mock_makedirs.assert_called_once_with(output_folder)
+        
+        mock_open_file.assert_called_once_with(os.path.join(output_folder, "tracked_spores.csv"), mode="w", newline="")
+        
+        mock_csv_writer_instance = mock_csv_writer.return_value
+        mock_csv_writer_instance.writerow.assert_any_call(["Spore ID", "Frame", "Size (µm²)", "Center X", "Center Y"])
+
+
+
+
+class TestTrackTipsAcrossFrames(unittest.TestCase):
+
+    @patch("os.makedirs")
+    @patch("builtins.open", new_callable=mock_open)
+    @patch("csv.writer")
+    def test_track_tips_across_frames(self, mock_csv_writer, mock_open_file, mock_makedirs):
+        # Mock inputs
+        tip_positions = [
+            [(10, 10), (20, 20)],  # Frame 0 tips
+            [(12, 12), (22, 22), (30, 30)]  # Frame 1 tips (one new tip appears)
+        ]
+        distance_threshold = 5
+        output_folder = "mock_csv_files"
+
+        # Call the function
+        tracked_tips = track_tips_across_frames(tip_positions, distance_threshold, output_folder)
+
+        # Assertions on results
+        self.assertEqual(len(tracked_tips), 3)  # Three unique tips tracked
+        self.assertEqual(len(tracked_tips[0]), 2)  # Tip ID 0 tracked across two frames
+        self.assertEqual(len(tracked_tips[1]), 2)  # Tip ID 1 tracked across two frames
+        self.assertEqual(len(tracked_tips[2]), 1)  # Tip ID 2 appears in the second frame
+
+        # Check folder creation and CSV writing
+        mock_makedirs.assert_called_once_with(output_folder)
+        
+        mock_open_file.assert_called_once_with(os.path.join(output_folder, "tracked_tips.csv"), mode="w", newline="")
+        
+        mock_csv_writer_instance = mock_csv_writer.return_value
+        mock_csv_writer_instance.writerow.assert_any_call(["Tip ID", "Frame", "Y", "X"])
+
+
+
+
+
+class TestProcessFrame(unittest.TestCase):
+
+    def test_process_frame(self):
+        # Create a synthetic grayscale frame with high intensity variations
+        frame = np.zeros((100, 100), dtype=np.uint8)
+        cv2.circle(frame, (50, 50), 20, 255, -1)  # Add a bright circle in the center
+
+        # Parameters for processing
+        thresholder = cv2.ADAPTIVE_THRESH_GAUSSIAN_C
+        threshold_value = 11
+
+        # Call the function
+        processed_frame = process_frame(frame, thresholder, threshold_value)
+
+        # Assertions on processed frame properties
+        self.assertEqual(processed_frame.shape, frame.shape)  # Output should have the same dimensions as input
+        self.assertTrue(np.any(processed_frame > 0))  # Processed frame should contain non-zero values
+
+    def test_process_frame_with_color_image(self):
+        # Create a synthetic RGB frame with high intensity variations
+        frame = np.zeros((100, 100, 3), dtype=np.uint8)
+        cv2.circle(frame, (50, 50), 20, (255, 255, 255), -1)  # Add a bright circle in the center
+
+        # Parameters for processing
+        thresholder = cv2.ADAPTIVE_THRESH_GAUSSIAN_C
+        threshold_value = 11
+
+        # Call the function
+        processed_frame = process_frame(frame, thresholder, threshold_value)
+
+        # Assertions on processed frame properties
+        self.assertEqual(processed_frame.shape[:2], frame.shape[:2])  # Output should match input dimensions (grayscale)
+
+
+class TestSelectArea(unittest.TestCase):
+
+    @patch("cv2.imshow")
+    def test_select_area(self, mock_imshow):
+        global selected_area, resizing, resized_img, scale_factor, selection_done
+
+        # Initialize global variables
+        selected_area = []
+        resizing = False
+        resized_img = np.zeros((100, 100, 3), dtype=np.uint8)
+        scale_factor = 1.0
+        selection_done = False
+
+        # Simulate mouse events for selecting an area
+        select_area(cv2.EVENT_LBUTTONDOWN, 10, 20, None, None)  # Mouse down at (10, 20)
+        self.assertEqual(selected_area, [10, 20, 10, 20])  # Initial selection coordinates
+
+        select_area(cv2.EVENT_MOUSEMOVE, 30, 40, None, None)  # Mouse move to (30, 40)
+        self.assertEqual(selected_area, [10, 20, 30, 40])  # Updated rectangle coordinates
+
+        select_area(cv2.EVENT_LBUTTONUP, 30, 40, None, None)  # Mouse up at (30, 40)
+        self.assertEqual(selected_area, [10, 20, 30, 40])  # Finalized selection coordinates
+        self.assertTrue(selection_done)  # Selection should be marked as done
+
+    def test_no_selection_after_done(self):
+        global selected_area, resizing, resized_img, scale_factor, selection_done
+
+        # Initialize global variables
+        selected_area = []
+        resizing = False
+        resized_img = np.zeros((100, 100, 3), dtype=np.uint8)
+        scale_factor = 1.0
+        selection_done = True
+
+        # Simulate mouse events after selection is done
+        select_area(cv2.EVENT_LBUTTONDOWN, 10, 20, None, None)  # Mouse down at (10, 20)
+        self.assertEqual(selected_area, [])  # No new selection should be made
+ 
+
+class TestSelectROI(unittest.TestCase):
+
+    @patch("cv2.imshow")
+    def test_select_ROI(self, mock_imshow):
+        global selected_ROI, resizing, resized_img, scale_factor, ROIselection_done
+
+        # Initialize global variables
+        selected_ROI = []
+        resizing = False
+        resized_img = np.zeros((100, 100, 3), dtype=np.uint8)
+        scale_factor = 1.0
+        ROIselection_done = False
+
+        # Simulate mouse events for selecting an ROI
+        select_ROI(cv2.EVENT_LBUTTONDOWN, 15, 25, None, None)  # Mouse down at (15, 25)
+        self.assertEqual(selected_ROI, [15, 25, 15, 25])  # Initial ROI coordinates
+
+        select_ROI(cv2.EVENT_MOUSEMOVE, 35, 45, None, None)  # Mouse move to (35, 45)
+        self.assertEqual(selected_ROI, [15, 25, 35, 45])  # Updated rectangle coordinates
+
+        select_ROI(cv2.EVENT_LBUTTONUP, 35, 45, None,None)   # Mouse up at (35 ,45 )
+        
+
+        
+
 
 if __name__ == "__main__":
     unittest.main()
