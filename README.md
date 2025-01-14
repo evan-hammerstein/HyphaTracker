@@ -66,6 +66,7 @@ Ensure file names follow a pattern to allow frame numbers to be extracted (e.g.,
 ## Step 2: Run the Script
 
 Specify parameters like magnification, filter type, and sensitivity.
+
 Upload the file folder for analysis and click 'Go'.
 
 ## Step 3: Review Results
