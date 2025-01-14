@@ -140,7 +140,7 @@ Results will be saved in the specified output folders:
 # Outputs
 
 Outputs are organized into three folders; csv_files, graphs, and visuals.
-They are downloaded to the file explorer for access and an option for viewing them in the GUI is provided. 
+They are downloaded to the file explorer for access.
 
 ## CSV Files:
 
