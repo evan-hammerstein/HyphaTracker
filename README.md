@@ -49,6 +49,10 @@ Please ensure all dependencies are installed before running the script.
 
 * Images should be named with frame numbers for sequential processing
 
+## Compatible Systems
+
+* Mac
+
 # Usage Instructions
 
 ## Step 1: Prepare Input Data
@@ -169,7 +173,7 @@ Growth rates, branching frequencies, biomass trends, spore metrics
 
 # Notes
 
-* Ensure input images are preprocessed
+* Ensure input images have strong enough contrast
 
 * Review logs for any warnings or errors
 
