@@ -1,0 +1,2 @@
+Analysis complete for /Users/evanhammerstein/Documents/at3_1m4_01.tiff
+Parameters: Dim=10x, Filter=Gaussian, Sensitivity=5

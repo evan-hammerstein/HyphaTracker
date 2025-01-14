@@ -1,0 +1,20 @@
+{
+  "name": "hyphatracker",
+  "version": "1.0.0",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "electron ."
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "electron": "^33.3.1"
+  },
+  "dependencies": {
+    "python-shell": "^5.0.0",
+    "tiff": "^6.1.1"
+  }
+}
