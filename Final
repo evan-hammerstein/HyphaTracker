@@ -12,12 +12,7 @@ from skimage.exposure import rescale_intensity
 import math
 import os
 
-
-
-
-
 # ========== IMAGE PROCESSING FUNCTIONS ==========
-
 
 # Skeletonize Image
 def skeletonize_image(binary_image):
@@ -39,8 +34,6 @@ def filter_hyphae(binary_image, min_size=100):
     labeled_image = label(binary_image)                                         # Label connected components in the image
     filtered_image = remove_small_objects(labeled_image, min_size=min_size)     # Remove small components
     return filtered_image > 0                                                   # Return as binary image (True for retained components)
-
-
 
 # ========== VISUALIZATION FUNCTIONS ==========
 # Display Image
@@ -92,8 +85,6 @@ def display_tips(binary_image, tips, frame_idx, visuals_folder="visuals"):
 
     plt.show()
 
-
-
 # Visualize tracked tips
 def visualize_tracked_tips(tracked_tips, image_file, frame_idx, visuals_folder="visuals"):
     """
@@ -126,27 +117,10 @@ def visualize_tracked_tips(tracked_tips, image_file, frame_idx, visuals_folder="
 
     plt.show()
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 # =========== HYPHAL METRICS ===========================
 #=======================================================
 
 # ========== HYPHAL TIP DETECTION ==========
-
-# Detect endpoints
-
 
 def save_to_csv(data, filepath):
     """
@@ -165,15 +139,6 @@ def save_to_csv(data, filepath):
         csv_writer = csv.writer(csvfile)
         csv_writer.writerows(data)
     print(f"Data saved to {filepath}")
-
-
-
-
-import os
-import numpy as np
-from scipy.ndimage import convolve
-from skimage.measure import label
-import csv
 
 def find_hyphal_endpoints(filtered_skeleton, frame_idx, output_folder="csv_files"):
     """
@@ -219,16 +184,6 @@ def find_hyphal_endpoints(filtered_skeleton, frame_idx, output_folder="csv_files
     
     return valid_endpoints
 
-
-
-
-
-
-import os
-import cv2
-import numpy as np
-import csv
-
 def calculate_distances_to_roi_and_visualize(tracked_tips, tip_id, roi_vertices, images, visuals_folder, csv_folder):
     """
     Calculate the distances of a specific hyphal tip to a rectangular region of interest (ROI) and create visualizations.
@@ -272,29 +227,39 @@ def calculate_distances_to_roi_and_visualize(tracked_tips, tip_id, roi_vertices,
         
         # Highlight the tip in red
         cv2.circle(visualized_image, (x_tip, y_tip), radius=5, color=(0, 0, 255), thickness=-1)
-        
-        # Calculate the shortest distance from the tip to the ROI
-        shortest_distance = float('inf')
-        closest_point = None
-        for i in range(len(roi_vertices)):
-            # Get consecutive points in the polygon
-            x1, y1 = roi_vertices[i]
-            x2, y2 = roi_vertices[(i + 1) % len(roi_vertices)]  # Wrap around to the first point
-            
-            # Compute the closest point on the line segment to the tip
-            px, py = closest_point_on_line_segment(x1, y1, x2, y2, x_tip, y_tip)
-            distance = np.sqrt((px - x_tip) ** 2 + (py - y_tip) ** 2)
-            if distance < shortest_distance:
-                shortest_distance = distance
-                closest_point = (px, py)
-        
-        distances.append(shortest_distance)
-        visualization_data.append([frame_idx, f"{shortest_distance:.3f}"])
 
-        # Draw the dotted line between the tip and the closest point on the ROI
-        if closest_point:
-            px, py = closest_point
-            draw_dotted_line(visualized_image, (x_tip, y_tip), (int(px), int(py)), color=(255, 255, 255))
+        # Convert tip position to float for `pointPolygonTest`
+        tip_point = (float(x_tip), float(y_tip))
+
+        # Check if the tip is inside the ROI
+        point_in_roi = cv2.pointPolygonTest(roi_polygon, tip_point, False)
+        if point_in_roi >= 0:
+            distances.append(0)
+            visualization_data.append([frame_idx, "0"])
+        else:
+
+            # Calculate the shortest distance from the tip to the ROI
+            shortest_distance = float('inf')
+            closest_point = None
+            for i in range(len(roi_vertices)):
+                # Get consecutive points in the polygon
+                x1, y1 = roi_vertices[i]
+                x2, y2 = roi_vertices[(i + 1) % len(roi_vertices)]  # Wrap around to the first point
+                
+                # Compute the closest point on the line segment to the tip
+                px, py = closest_point_on_line_segment(x1, y1, x2, y2, x_tip, y_tip)
+                distance = np.sqrt((px - x_tip) ** 2 + (py - y_tip) ** 2)
+                if distance < shortest_distance:
+                    shortest_distance = distance
+                    closest_point = (px, py)
+            
+            distances.append(shortest_distance)
+            visualization_data.append([frame_idx, f"{shortest_distance:.3f}"])
+
+            # Draw the dotted line between the tip and the closest point on the ROI
+            if closest_point:
+                px, py = closest_point
+                draw_dotted_line(visualized_image, (x_tip, y_tip), (int(px), int(py)), color=(255, 255, 255))
         
         # Save the visualization
         output_path = os.path.join(visuals_folder, f"tip_{tip_id}_frame_{frame_idx}.png")
@@ -306,10 +271,10 @@ def calculate_distances_to_roi_and_visualize(tracked_tips, tip_id, roi_vertices,
         csv_writer = csv.writer(csvfile)
         csv_writer.writerows(visualization_data)
     
-    print(f"Distances to ROI for Tip {tip_id} saved to {csv_file_path} and visualizations saved in {visuals_folder}.")
+    print(f"Distances to ROI for Tip {tip_id} saved to {csv_file_path}.")
+    print(f"Visualizations saved in {visuals_folder}.")
 
     return distances
-
 
 # Define helper functions
 def closest_point_on_line_segment(x1, y1, x2, y2, x, y):
@@ -339,13 +304,6 @@ def draw_dotted_line(image, start, end, color, thickness=1, gap=5):
         cv2.line(image, (start_x, start_y), (end_x, end_y), color, thickness)
 
 # ========== HYPHAL METRICS ==========
-
-
-
-
-
-
-
 
 #TIP GROWTH RATE
 def calculate_average_growth_rate(tracked_tips, frame_interval, time_per_frame, output_folder = "csv_files"):
@@ -405,9 +363,6 @@ def calculate_average_growth_rate(tracked_tips, frame_interval, time_per_frame, 
 
     return average_growth_rates, general_average_growth_rate
 
-
-
-
 #TIP GROWTH ANGLE
 
 def calculate_growth_angles(tracked_tips, tip_id, output_folder = "csv_files"):
@@ -452,9 +407,6 @@ def calculate_growth_angles(tracked_tips, tip_id, output_folder = "csv_files"):
 
     return growth_angles
 
-
-
-
 def calculate_tip_size(binary_image, tip_position, radius_microns=10, fov_1x=(1000, 1000), magnification=10):
     """
     Calculate the size of a single tip by counting the filled pixels within a specified radius.
@@ -494,9 +446,6 @@ def calculate_tip_size(binary_image, tip_position, radius_microns=10, fov_1x=(10
     # Convert the count of pixels to area in microns squared
     tip_size = tip_pixels * pixel_area
     return tip_size
-
-import os
-import csv
 
 def track_tip_size_over_time(tracked_tips, binary_images, tip_id, radius_microns=10, output_folder="csv_files"):
     """
@@ -580,9 +529,6 @@ def calculate_overall_average_tip_size(tracked_tips, binary_images, radius_micro
     print(f"Overall average tip size saved to {csv_file}")
     return overall_average_size
 
-
-
-
 #============ BRANCHING FREQUENCY ===============
 import os
 import csv
@@ -641,7 +587,6 @@ def calculate_branching_rate(tip_positions, distance_threshold=15, output_folder
 
     print(f"Branching rate saved to {csv_file}")
     return branching_events_per_frame, total_branching_events
-
 
 # ========== MYCELIAL METRICS ==========
 
@@ -711,10 +656,6 @@ def calculate_biomass_over_time(image_files, fov_1x, magnification, threshold, s
     print(f"Biomass over time saved to {csv_file}")
     return [value[1] for value in biomass_values]
 
-
-
-
-
 # ==========SPORES===========
 
 def identify_spores(image, min_size, max_size, circularity_threshold):
@@ -742,8 +683,6 @@ def identify_spores(image, min_size, max_size, circularity_threshold):
                 spores.append({"center": (int(x), int(y)), "size": area})
 
     return spores
-
-
 
 #NUMBER/SIZE/DISTRIBUTION OF SPORES (SPHERICAL STRUCTURES)
 from scipy.spatial.distance import cdist
@@ -837,14 +776,7 @@ def track_spores_over_time(image_files, min_size=10, max_size=200, circularity_t
     return spore_size_histories
 
 
-
-
-
-
-
 # ========== SEQUENCE PROCESSING ==========
-
-
 
 # Match tips between frames and handle branching
 def track_tips_across_frames(tip_positions, distance_threshold=15, output_folder="csv_files"):
@@ -906,55 +838,9 @@ def track_tips_across_frames(tip_positions, distance_threshold=15, output_folder
     return tracked_tips
 
 
-
-
-# ========== MAKE GRAPHS ==========
-
-# Plotting the growth rate
-
-# Plotting the growth angle of a tip
-
-# Plotting the size of a tip
-
-# Plotting the biomass
-
-# Plotting the branching rate
-
-# Plotting the distance to ROI
-
-# Plotting the spore nummber
-
-# Plotting the spore size
-
-
-
-
-
-
-
 # ========== MAIN EXECUTION ==========
 
 # ========== Input Parameters ==========
-import os
-import shutil
-
-def delete_folder(folder_path):
-    """
-    Delete the specified folder and all its contents.
-    
-    :param folder_path: Path to the folder to delete.
-    """
-    if os.path.exists(folder_path):
-        try:
-            shutil.rmtree(folder_path)  # Remove the folder and all its contents
-            print(f"Deleted folder: {folder_path}")
-        except Exception as e:
-            print(f"Error deleting folder {folder_path}: {e}")
-    else:
-        print(f"Folder does not exist: {folder_path}")
-
-
-
 
 def process_frame(frame, thresholder, threshold_value):
     # Normalize pixel values
@@ -1130,7 +1016,7 @@ def main():
         os.makedirs(folder_path, exist_ok=True)  # Create the directory if it doesn't exist
         base_folder = r"C:\Users\pc1922\OneDrive - Imperial College London\Desktop\HyphaTracker\Visualisations"# sys.argv[5]
         os.makedirs(base_folder, exist_ok=True)  # Create the directory if it doesn't exist
-        csv_file = r"C:\Users\pc1922\OneDrive - Imperial College London\Desktop\HyphaTracker\output_metrics.csv"# sys.argv[5]
+        csv_file = r"C:\Users\pc1922\OneDrive - Imperial College London\Desktop\HyphaTracker\output_metrics.csv"
         outputs_dir = r"C:\Users\pc1922\OneDrive - Imperial College London\Desktop\HyphaTracker\Outputs"# sys.argv[5]
         os.makedirs(outputs_dir, exist_ok=True)  # Create the directory if it doesn't exist
         
@@ -1254,9 +1140,9 @@ def main():
 
         # Visualize distances to ROI
         tip_id = 1000
-     #   calculate_distances_to_roi_and_visualize(
-          #  tracked_tips, tip_id, roi_polygon, image_files, visuals_folder, csv_folder
-       # )
+        calculate_distances_to_roi_and_visualize(
+            tracked_tips, tip_id, roi_polygon, image_files, visuals_folder, csv_folder
+        )
 
         # Calculate and save metrics
         calculate_average_growth_rate(tracked_tips, frame_interval, time_per_frame, csv_folder)
