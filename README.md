@@ -93,11 +93,11 @@ Results will be saved in the specified output folders:
 
 **`track_tips_across_frames`:** Matches tips between frames
 
-**`calculate_tip_size`:** Determines the size of a hyphal tip based on pixel area.
+**`calculate_tip_size`:** Determines the size of a hyphal tip based on pixel area
 
-**`track_tip_size_over_time`:** Tracks changes in hyphal tip size across multiple frames.
+**`track_tip_size_over_time`:** Tracks changes in hyphal tip size across multiple frames
 
-**`calculate_overall_average_tip_size`:** Calculates the average size of all tips across frames.
+**`calculate_overall_average_tip_size`:** Calculates the average size of all tips across frames
 
 **`calculate_average_growth_rate`:** Computes the average growth rate of tips
 
@@ -129,13 +129,13 @@ Results will be saved in the specified output folders:
 
 ## Additional Image Processing Functions
 
-**`filter_hyphae`:** Removes small connected components (e.g., noise or spores) to retain only large hyphae structures.
+**`filter_hyphae`:** Removes small connected components (like noise or spores) to keep only large hyphae structures
 
-**`process_frame`:** Applies normalization, thresholding, and morphological operations to enhance image quality for analysis.
+**`process_frame`:** Applies normalization, thresholding, and morphological operations to enhance image quality for analysis
 
-**`select_area`:** Allows the user to interactively select an area of interest for cropping.
+**`select_area`:** Allows user to interactively select an area for cropping
 
-**`select_ROI`:** Enables interactive selection of a rectangular region of interest (ROI).
+**`select_ROI`:** Enables selection of a rectangular region of interest (ROI)
 
 # Outputs
 
@@ -145,19 +145,19 @@ Results will be saved in the specified output folders:
 
 * Branching frequency
 
-* Biomass values over time
+* Biomass over time
 
-* Spore counts and sizes
+* Spore number and size
 
 ## Graphs:
 
-Growth rates, branching frequencies, biomass trends, and spore metrics
+Growth rates, branching frequencies, biomass trends, spore metrics
 
 ## Visualizations:
 
 * Skeletonized images with tips
 
-* Tip distance visualizations
+* Tip distance from ROI visualizations
 
 # Customization
 
@@ -165,11 +165,11 @@ Growth rates, branching frequencies, biomass trends, and spore metrics
 
 * Update `roi_polygon` for custom regions of interest
 
-* Use different magnification levels to adjust pixel-to-area conversion factors
+* Change magnification to adjust pixel-to-area conversion factors
 
 # Notes
 
-* Ensure input images are preprocessed for optimal results
+* Ensure input images are preprocessed
 
 * Review logs for any warnings or errors during processing
 
