@@ -1,0 +1,98 @@
+/* General Styles */
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+  background-color: #1e1e1e;
+  color: #d4d4d4;
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.header {
+  background-color: #252526;
+  text-align: center;
+  padding: 20px;
+  font-size: 1.5rem;
+  color: #d4d4d4;
+  border-bottom: 1px solid #333;
+}
+
+.content {
+  flex: 1;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Upload Section */
+.upload-section {
+  text-align: center;
+  background-color: #2d2d2d;
+  border: 1px solid #333;
+  padding: 30px;
+  border-radius: 8px;
+}
+
+#upload-button {
+  background-color: #3a3a3a;
+  border: 1px solid #444;
+  padding: 10px 20px;
+  cursor: pointer;
+  font-size: 1rem;
+  border-radius: 5px;
+  color: #d4d4d4;
+  transition: background-color 0.2s;
+}
+
+#upload-button:hover {
+  background-color: #454545;
+}
+
+/* Parameters Section */
+.parameters-section {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.parameter-group label {
+  font-size: 0.9rem;
+  color: #cccccc;
+}
+
+.parameter-group select {
+  padding: 10px;
+  font-size: 1rem;
+  background-color: #2d2d2d;
+  border: 1px solid #333;
+  color: #d4d4d4;
+  border-radius: 4px;
+}
+
+/* Analysis Section */
+.analysis-section {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.action-button {
+  background-color: #6FCF97;
+  color: black;
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-size: 1.2rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.action-button:hover {
+  background-color: #57a874;
+}

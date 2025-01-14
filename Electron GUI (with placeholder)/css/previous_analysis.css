@@ -1,0 +1,201 @@
+/* Main container layout */
+.container {
+    display: flex;
+    height: 100vh;
+}
+
+
+/* Main dashboard */
+.dashboard {
+    flex: 1; /* Take up all remaining space */
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Header */
+.header h1 {
+    font-size: 2rem;
+    color: white;
+    margin-bottom: 20px;
+}
+
+/* Toolbar */
+.toolbar {
+    display: flex;
+    justify-content: flex-end; /* Right-align the button */
+    margin-bottom: 20px;
+    padding-right: 20px; /* Add padding for alignment */
+}
+
+.add-button {
+    background-color: #6FCF97; /* Light green */
+    color: black;
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-size: 1.2rem;
+    font-weight: bold;
+    cursor: pointer;
+    display: inline-block;
+}
+
+/* Sorting Bar */
+.sorting-bar {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr); /* Create 5 equal columns */
+    background-color: #2E4A40; /* Dark green for the sorting bar */
+    color: white;
+    font-weight: bold;
+    padding: 10px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    width: 100%; /* Ensure it spans the full width of the parent container */
+    box-sizing: border-box; /* Include padding in width calculation */
+}
+
+.sorting-bar span {
+    text-align: center;
+}
+
+/* Table Styling */
+.analysis-table-container {
+    width: 100%;
+    margin-top: 20px;
+}
+
+.analysis-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed; /* Ensure consistent column widths */
+    background-color: #1f2d2f; /* Match theme */
+    color: white;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.analysis-table th,
+.analysis-table td {
+    text-align: left;
+    padding: 10px 15px;
+    border-bottom: 1px solid #2e3d3f;
+}
+
+.analysis-table th {
+    background-color: #2b3a3d; /* Header row background */
+    font-weight: bold;
+}
+
+.analysis-table td {
+    background-color: #243133; /* Row background */
+}
+
+.analysis-table .action-button {
+    padding: 6px 10px;
+    background-color: #5ca375;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9em;
+}
+
+.analysis-table .action-button:hover {
+    background-color: #4d9262; /* Darker hover color */
+}
+
+.analysis-table tr:last-child td {
+    border-bottom: none;
+}
+
+.analysis-table .placeholder {
+    color: white;
+    text-align: center;
+    margin-top: 20px;
+    font-size: 1rem;
+}
+
+/* Modal Styling */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10;
+}
+
+.modal.hidden {
+    display: none;
+}
+
+.modal-content {
+    background-color: #2E4A40;
+    padding: 20px 40px;
+    border-radius: 10px;
+    text-align: center;
+    color: white;
+}
+
+.modal-button {
+    background-color: #6FCF97;
+    padding: 10px 20px;
+    border-radius: 5px;
+    margin: 10px;
+    cursor: pointer;
+}
+
+.modal-close {
+    background-color: #B22222;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+/* Viewing window for files style */
+/* File Viewer Overlay */
+#file-viewer-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.9); /* Dark overlay background */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 20;
+  }
+  
+  #file-viewer-overlay.hidden {
+    display: none;
+  }
+  
+  #file-viewer-content {
+    max-width: 90%;
+    max-height: 90%;
+    overflow: auto;
+  }
+  
+  .modal-content.large {
+    background-color: #2E4A40;
+    border-radius: 10px;
+    padding: 20px;
+    position: relative;
+  }
+  
+  #close-viewer {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background-color: #B22222;
+    color: white;
+    border: none;
+    padding: 10px;
+    border-radius: 5px;
+    cursor: pointer;
+  }
+  
