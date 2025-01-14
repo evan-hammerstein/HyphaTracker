@@ -30,6 +30,7 @@ def preprocess_image(image, crop_points = [
     :param image: Grayscale image as a NumPy array.
     :return: Binary image as a NumPy array (1 for foreground, 0 for background).
     """
+#/* Reference 1 - Information and guidance provided by ChatGPT, an AI language model developed by OpenAI. */ 
 
     # Step 1: Create a mask for non-rectangular cropping
     # Create an empty mask
@@ -48,6 +49,8 @@ def preprocess_image(image, crop_points = [
     
     # Step 3: Return the binary image
     return binary_image.astype(np.uint8)                                        # Convert to uint8 for further processing
+
+#End reference 1
 
 # Skeletonize Image
 def skeletonize_image(binary_image):
@@ -120,6 +123,7 @@ def display_tips(binary_image, tips, frame_idx, visuals_folder="visuals"):
 
 
 
+#/* Reference 2 - Information and guidance provided by ChatGPT, an AI language model developed by OpenAI. */ 
 
 # Visualize tracked tips
 def visualize_tracked_tips(tracked_tips, image_file, frame_idx, visuals_folder="visuals"):
@@ -152,7 +156,7 @@ def visualize_tracked_tips(tracked_tips, image_file, frame_idx, visuals_folder="
         print(f"Saved visualization to {save_path}")
 
     plt.show()
-
+#End reference 2
 
 # =========== HYPHAL METRICS ===========================
 #=======================================================
@@ -161,6 +165,7 @@ def visualize_tracked_tips(tracked_tips, image_file, frame_idx, visuals_folder="
 
 # Detect endpoints
 
+#/* Reference 3 - Information and guidance provided by ChatGPT, an AI language model developed by OpenAI. */ 
 
 def save_to_csv(data, filepath):
     """
@@ -180,12 +185,15 @@ def save_to_csv(data, filepath):
         csv_writer.writerows(data)
     print(f"Data saved to {filepath}")
 
+#End reference 3
 
 import os
 import numpy as np
 from scipy.ndimage import convolve
 from skimage.measure import label
 import csv
+
+#/* Reference 4 - Information and guidance provided by ChatGPT, an AI language model developed by OpenAI. */ 
 
 def find_hyphal_endpoints(filtered_skeleton, frame_idx, output_folder="csv_files"):
     """
@@ -230,7 +238,7 @@ def find_hyphal_endpoints(filtered_skeleton, frame_idx, output_folder="csv_files
     print(f"Hyphal endpoints for frame {frame_idx} saved to {csv_filename}")
     
     return valid_endpoints
-
+#End reference 4
 
 #DISTANCE TO REGIONS OF INTEREST
 # Example: Regions of interest (e.g., spore centroids)
@@ -242,6 +250,7 @@ import cv2
 import numpy as np
 import csv
 
+#/* Reference 5 - Information and guidance provided by ChatGPT, an AI language model developed by OpenAI. */ 
 def calculate_distances_to_roi_and_visualize(tracked_tips, tip_id, roi_vertices, images, visuals_folder, csv_folder):
     """
     Calculate the distances of a specific hyphal tip to a rectangular region of interest (ROI) and create visualizations.
@@ -332,7 +341,7 @@ def calculate_distances_to_roi_and_visualize(tracked_tips, tip_id, roi_vertices,
     print(f"Visualizations saved in {visuals_folder}.")
 
     return distances
-
+#End reference 5
 
 # Define helper functions
 def closest_point_on_line_segment(x1, y1, x2, y2, x, y):
@@ -531,6 +540,7 @@ def calculate_tip_size(binary_image, tip_position, pixel_area, radius_microns=10
     tip_size = tip_pixels * pixel_area
     return tip_size
 
+#/* Reference 6 - Information and guidance provided by ChatGPT, an AI language model developed by OpenAI. */ 
 
 def track_tip_size_over_time(tracked_tips, binary_images, tip_id, pixel_area, radius_microns=10, output_folder="csv_files", graph_folder="graphs"):
     """
@@ -594,7 +604,7 @@ def track_tip_size_over_time(tracked_tips, binary_images, tip_id, pixel_area, ra
     print(f"Tip size graph for Tip {tip_id} saved to {graph_path}")
 
     return tip_sizes
-
+#End reference 6
 
 def calculate_overall_average_tip_size(tracked_tips, binary_images, pixel_area, radius_microns=10, output_folder="csv_files"):
     """
@@ -642,6 +652,8 @@ def calculate_overall_average_tip_size(tracked_tips, binary_images, pixel_area, 
 import os
 import csv
 from scipy.spatial.distance import cdist
+
+#/* Reference 7 - Information and guidance provided by ChatGPT, an AI language model developed by OpenAI. */ 
 
 def calculate_branching_rate(tip_positions, distance_threshold=15, output_folder="csv_files", graph_folder="graphs"):
     """
@@ -714,7 +726,7 @@ def calculate_branching_rate(tip_positions, distance_threshold=15, output_folder
 
 
     return branching_events_per_frame, total_branching_events
-
+#End reference 7
 
 # ========== MYCELIAL METRICS ==========
 
@@ -789,6 +801,7 @@ def calculate_biomass_over_time(image_files, pixel_area, output_folder="csv_file
 
 
 # ==========SPORES===========
+#/* Reference 8 - Information and guidance provided by ChatGPT, an AI language model developed by OpenAI. */ 
 
 def identify_spores(image, min_size, max_size, circularity_threshold):
     """
@@ -827,13 +840,13 @@ def identify_spores(image, min_size, max_size, circularity_threshold):
                     spores.append({"center": (int(x), int(y)), "size": area})
 
     return spores
-
+#End reference 8
 
 
 #NUMBER/SIZE/DISTRIBUTION OF SPORES (SPHERICAL STRUCTURES)
 from scipy.spatial.distance import cdist
 
-#/* Reference 1 - Information and guidance provided by ChatGPT, an AI language model developed by OpenAI. */ 
+#/* Reference 9 - Information and guidance provided by ChatGPT, an AI language model developed by OpenAI. */ 
 def track_spores_over_time(image_files, min_size=10, max_size=200, circularity_threshold=0.7, distance_threshold=15, output_folder="csv_files", graph_folder="graphs"):
     """
     Track spores over time across a sequence of images and output their sizes over time.
@@ -959,7 +972,7 @@ def track_spores_over_time(image_files, min_size=10, max_size=200, circularity_t
 
     print(f"Spore count and size saved to CSV, and graphs saved to {graph_folder}.")
     return tracked_spores
-#End Reference 1
+#End Reference 9
 
 # ========== SEQUENCE PROCESSING ==========
 
@@ -992,7 +1005,7 @@ def process_sequence(image_files, min_size=50, distance_threshold=15): # adjust 
     return tracked_tips
 
 # Match tips between frames and handle branching
-#/* Reference 2 - Information and guidance provided by ChatGPT, an AI language model developed by OpenAI. */ 
+#/* Reference 10 - Information and guidance provided by ChatGPT, an AI language model developed by OpenAI. */ 
 def track_tips_across_frames(tip_positions, distance_threshold=15, output_folder="csv_files"):
     """
     Track hyphal tips across frames, creating separate lists for new branches.
@@ -1050,7 +1063,7 @@ def track_tips_across_frames(tip_positions, distance_threshold=15, output_folder
 
     print(f"Tracked tips saved to {csv_file}")
     return tracked_tips
-#End Reference 2
+#End Reference 10
 
 # ========== MAIN EXECUTION ==========
 
@@ -1117,7 +1130,7 @@ def extract_frame_number(file_path):
     parts = file_name.split('_')
     return int(parts[2])  # Frame number is the 3rd part (index 2)
 
-#/* Reference 3 - Information and guidance provided by ChatGPT, an AI language model developed by OpenAI. */ 
+#/* Reference 13 - Information and guidance provided by ChatGPT, an AI language model developed by OpenAI. */ 
 def select_area(event, x, y, flags, param):
     global selected_area, resizing, resized_img, scale_factor, selection_done
 
@@ -1147,7 +1160,7 @@ def select_area(event, x, y, flags, param):
             print(f"Selected area: {selected_area}")
         selection_done = True
 
-#End Reference 3
+#End Reference 13
 def select_ROI(event, x, y, flags, param):
     global selected_ROI, resizing, resized_img, scale_factor, ROIselection_done
 
