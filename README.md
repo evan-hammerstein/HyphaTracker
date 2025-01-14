@@ -32,7 +32,7 @@ This project is designed to analyze fungal growth using image processing techniq
 
 ## Software Dependencies
 
-The code requires the following Python libraries:
+The code requires the following Python3 libraries:
 
 * `sys`
 * `os`
